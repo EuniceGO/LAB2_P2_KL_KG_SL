@@ -126,6 +126,9 @@
                         <a href="?controller=usuario&action=generarReporteCategorias" class="btn btn-info" target="_blank">
                             <i class="fas fa-tags"></i> Reporte de Categorías
                         </a>
+                        <a href="?controller=usuario&action=generarReporteFacturasClientes" class="btn btn-warning" target="_blank">
+                            <i class="fas fa-receipt"></i> Reporte de Facturas de Clientes
+                        </a>
                     </div>
                 </div>
             </div>
@@ -149,6 +152,9 @@
                         </a>
                         <a href="?controller=usuario&action=generarReporteCategoriasExcel" class="btn btn-info" target="_blank">
                             <i class="fas fa-tags"></i> Reporte de Categorías Excel
+                        </a>
+                        <a href="?controller=usuario&action=generarReporteFacturasClientesExcel" class="btn btn-warning" target="_blank">
+                            <i class="fas fa-receipt"></i> Reporte de Facturas de Clientes Excel
                         </a>
                     </div>
                 </div>

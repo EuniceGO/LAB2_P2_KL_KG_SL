@@ -79,7 +79,7 @@ class QRCodeGenerator {
     private static function getBaseUrl() {
         // Configuración manual de IP para WiFi
         // IP configurada manualmente para acceso desde celular en WiFi
-        $host = '192.168.1.23';
+        $host = '192.168.1.160';
         
         $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
         
@@ -136,33 +136,17 @@ class QRCodeGenerator {
         return null;
     }
     
-    /**
-     * Genera un código QR específico para un producto
-     * @param object $producto - Objeto producto
-     * @param int $size - Tamaño del QR
-     * @return string - URL del QR del producto
-     */
+    
     public static function generateProductQR($producto, $size = 200) {
         $productData = self::generateProductData($producto);
         return self::generateQRCode($productData, $size);
     }
-    
-    /**
-     * Genera un nombre único para el archivo QR
-     * @param int $productId - ID del producto
-     * @return string - Nombre del archivo
-     */
+   
     public static function generateQRFileName($productId) {
         return 'qr_producto_' . $productId . '_' . time() . '.png';
     }
     
-    /**
-     * Descarga y guarda el QR como imagen local
-     * @param string $qrUrl - URL del QR
-     * @param string $fileName - Nombre del archivo
-     * @param string $directory - Directorio donde guardar (por defecto 'assets/qr/')
-     * @return string|false - Ruta del archivo guardado o false en caso de error
-     */
+    
     public static function saveQRImage($qrUrl, $fileName, $directory = 'assets/qr/') {
         try {
             // Crear directorio si no existe
@@ -176,7 +160,7 @@ class QRCodeGenerator {
             $filePath = $directory . $fileName;
             $imageData = false;
             
-            // Método prioritario: CURL (más confiable en Windows/XAMPP)
+
             if (function_exists('curl_init')) {
                 $ch = curl_init();
                 curl_setopt($ch, CURLOPT_URL, $qrUrl);
@@ -251,20 +235,12 @@ class QRCodeGenerator {
         return false;
     }
     
-    /**
-     * Método alternativo usando URL directa (sin descargar archivo)
-     * @param object $producto - Objeto producto
-     * @return string - URL directa del QR
-     */
+    
     public static function generateProductQRUrl($producto) {
         return self::generateProductQR($producto);
     }
     
-    /**
-     * Proceso completo: genera QR y lo guarda como imagen
-     * @param object $producto - Objeto producto
-     * @return string|false - Ruta del archivo guardado o false en caso de error
-     */
+    
     public static function generateAndSaveProductQR($producto) {
         try {
             $qrUrl = self::generateProductQR($producto);
@@ -276,7 +252,7 @@ class QRCodeGenerator {
             if ($filePath) {
                 return $filePath;
             } else {
-                // Si falla al guardar, devolver false para no guardar URL inválida
+               
                 error_log("Error: No se pudo guardar la imagen QR para el producto " . $producto->getIdProducto());
                 return false;
             }
