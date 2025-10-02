@@ -158,6 +158,40 @@
             font-size: 0.8rem;
             z-index: 3;
         }
+        .product-image-section {
+            padding: 20px;
+            text-align: center;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-bottom: 1px solid #dee2e6;
+        }
+        .product-image {
+            max-width: 100%;
+            height: 250px;
+            object-fit: cover;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        .product-image:hover {
+            transform: scale(1.05);
+        }
+        .no-image-placeholder {
+            width: 100%;
+            height: 250px;
+            background: linear-gradient(135deg, #e9ecef, #f8f9fa);
+            border: 2px dashed #6c757d;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: #6c757d;
+        }
+        .no-image-placeholder i {
+            font-size: 4rem;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
@@ -172,6 +206,31 @@
                     <i class="fas fa-box"></i>
                 </div>
                 <h1 class="product-name"><?php echo htmlspecialchars($producto->getNombre()); ?></h1>
+            </div>
+
+            <!-- Sección de imagen del producto -->
+            <div class="product-image-section">
+                <?php if ($producto->getImagenUrl() && !empty($producto->getImagenUrl())): ?>
+                    <img src="<?php echo htmlspecialchars($producto->getImagenUrl()); ?>" 
+                         alt="<?php echo htmlspecialchars($producto->getNombre()); ?>" 
+                         class="product-image"
+                         onclick="ampliarImagen(this.src)"
+                         style="cursor: pointer;">
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-touch"></i> Toca la imagen para ampliar
+                        </small>
+                    </div>
+                <?php else: ?>
+                    <div class="no-image-placeholder">
+                        <i class="fas fa-image"></i>
+                        <div>
+                            <strong>Sin imagen disponible</strong>
+                            <br>
+                            <small>Este producto no tiene imagen asociada</small>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <!-- Información del producto -->
@@ -309,6 +368,70 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Agregando...';
             btn.disabled = true;
         });
+        
+        // Función para ampliar imagen
+        function ampliarImagen(imagenSrc) {
+            // Crear modal para mostrar imagen ampliada
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.9);
+                z-index: 9999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                cursor: pointer;
+            `;
+            
+            const img = document.createElement('img');
+            img.src = imagenSrc;
+            img.style.cssText = `
+                max-width: 100%;
+                max-height: 100%;
+                border-radius: 10px;
+                box-shadow: 0 10px 30px rgba(255,255,255,0.3);
+            `;
+            
+            const cerrarBtn = document.createElement('div');
+            cerrarBtn.innerHTML = '<i class="fas fa-times"></i>';
+            cerrarBtn.style.cssText = `
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                color: white;
+                font-size: 2rem;
+                cursor: pointer;
+                z-index: 10000;
+                width: 50px;
+                height: 50px;
+                background: rgba(0,0,0,0.5);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+            
+            modal.appendChild(img);
+            modal.appendChild(cerrarBtn);
+            document.body.appendChild(modal);
+            
+            // Cerrar modal al hacer clic
+            modal.addEventListener('click', function() {
+                document.body.removeChild(modal);
+            });
+            
+            // Animación de entrada
+            modal.style.opacity = '0';
+            setTimeout(() => {
+                modal.style.transition = 'opacity 0.3s ease';
+                modal.style.opacity = '1';
+            }, 10);
+        }
     </script>
 </body>
 </html>

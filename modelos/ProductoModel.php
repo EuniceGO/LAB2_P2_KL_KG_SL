@@ -208,5 +208,28 @@ class ProductoModel {
                 ORDER BY total_productos DESC";
         return $this->cn->consulta($sql);
     }
+    
+    // Obtener productos filtrados por categoría específica
+    public function getByCategoria($id_categoria) {
+        $sql = "SELECT p.id_producto, p.nombre AS nombre_producto, p.precio, p.id_categoria, p.codigo_qr, p.imagen_url, c.nombre AS nombre_categoria
+                FROM Productos p
+                LEFT JOIN Categorias c ON p.id_categoria = c.id_categoria
+                WHERE p.id_categoria = :id_categoria
+                ORDER BY p.nombre ASC";
+        $results = $this->cn->consulta($sql, [':id_categoria' => $id_categoria]);
+        $productos = [];
+        foreach ($results as $row) {
+            $producto = new Producto(
+                $row['id_producto'], 
+                $row['nombre_producto'], 
+                $row['precio'], 
+                $row['id_categoria'],
+                $row['codigo_qr'],
+                $row['imagen_url']
+            );
+            $productos[] = $producto;
+        }
+        return $productos;
+    }
 }
 ?>

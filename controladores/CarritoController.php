@@ -27,6 +27,21 @@ class CarritoController {
         $idProducto = $idProducto ?? ($_POST['id_producto'] ?? $_GET['id']);
         $cantidad = $_POST['cantidad'] ?? 1;
         $fromMobile = $_POST['from_mobile'] ?? $_GET['mobile'] ?? false;
+        
+        // Verificar si es una solicitud AJAX
+        $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+                  strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
+
+        // Si viene desde móvil, verificar autenticación
+        if ($fromMobile) {
+            session_start();
+            if (!isset($_SESSION['user_id']) || $_SESSION['user_role_id'] != 2) {
+                // No hay cliente logueado, redirigir al login móvil
+                $_SESSION['redirect_after_login'] = "?c=producto&a=viewMobile&id=" . $idProducto;
+                header('Location: ?controller=usuario&action=loginMobile&producto_id=' . $idProducto);
+                exit;
+            }
+        }
 
         if ($idProducto) {
             $producto = $this->productoModel->getById($idProducto);
@@ -34,7 +49,24 @@ class CarritoController {
             if ($producto) {
                 $exito = Carrito::agregarProducto($producto, $cantidad);
                 
-                if ($fromMobile) {
+                if ($isAjax) {
+                    // Respuesta JSON para solicitudes AJAX
+                    header('Content-Type: application/json');
+                    if ($exito) {
+                        $resumen = Carrito::obtenerResumen();
+                        echo json_encode([
+                            'success' => true,
+                            'message' => 'Producto agregado al carrito',
+                            'cantidad_total' => $resumen['cantidad']
+                        ]);
+                    } else {
+                        echo json_encode([
+                            'success' => false,
+                            'message' => 'Error al agregar el producto al carrito'
+                        ]);
+                    }
+                    exit;
+                } else if ($fromMobile) {
                     // Respuesta para móvil (vista optimizada)
                     $mensaje = $exito ? 'Producto agregado al carrito' : 'Error al agregar producto';
                     $resumenCarrito = Carrito::obtenerResumen();
@@ -48,7 +80,14 @@ class CarritoController {
                     }
                 }
             } else {
-                if ($fromMobile) {
+                if ($isAjax) {
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Producto no encontrado'
+                    ]);
+                    exit;
+                } else if ($fromMobile) {
                     $mensaje = 'Producto no encontrado';
                     include 'vistas/Carrito/mobile_error.php';
                 } else {
@@ -56,7 +95,14 @@ class CarritoController {
                 }
             }
         } else {
-            if ($fromMobile) {
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'ID de producto no válido'
+                ]);
+                exit;
+            } else if ($fromMobile) {
                 $mensaje = 'ID de producto no válido';
                 include 'vistas/Carrito/mobile_error.php';
             } else {
@@ -65,7 +111,7 @@ class CarritoController {
         }
         
         // Si no hay redirección, asegurar que no haya output adicional
-        if (!$fromMobile) {
+        if (!$fromMobile && !$isAjax) {
             exit;
         }
     }
@@ -121,6 +167,59 @@ class CarritoController {
             exit;
         }
         
+        // Obtener datos del cliente logueado si existe
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $datosCliente = null;
+        $esClienteLogueado = false;
+        
+        if (isset($_SESSION['user_id']) && $_SESSION['user_role_id'] == 2) {
+            $esClienteLogueado = true;
+            try {
+                require_once 'modelos/ClienteModel.php';
+                $clienteModel = new ClienteModel();
+                $cliente = $clienteModel->obtenerPorUsuario($_SESSION['user_id']);
+                
+                if ($cliente) {
+                    // Cliente encontrado en BD
+                    $datosCliente = [
+                        'nombre' => $cliente['nombre'],
+                        'email' => $cliente['email'],
+                        'telefono' => $cliente['telefono'] ?? '',
+                        'direccion' => $cliente['direccion'] ?? ''
+                    ];
+                } else {
+                    // Cliente NO encontrado en BD - Usar datos de sesión como fallback
+                    $datosCliente = [
+                        'nombre' => $_SESSION['user_name'] ?? '',
+                        'email' => $_SESSION['user_email'] ?? '',
+                        'telefono' => '',
+                        'direccion' => ''
+                    ];
+                }
+            } catch (Exception $e) {
+                // Si hay error en la consulta, usar datos de sesión como fallback
+                $datosCliente = [
+                    'nombre' => $_SESSION['user_name'] ?? '',
+                    'email' => $_SESSION['user_email'] ?? '',
+                    'telefono' => '',
+                    'direccion' => ''
+                ];
+            }
+        }
+        
+        // DEBUG TEMPORAL - Forzar datos para pruebas
+        if (isset($_GET['force_data'])) {
+            $esClienteLogueado = true;
+            $datosCliente = [
+                'nombre' => 'Cliente de Prueba FORZADO',
+                'email' => 'cliente.forzado@test.com',
+                'telefono' => '123-456-7890',
+                'direccion' => 'Dirección de prueba forzada'
+            ];
+        }
+        
         include 'vistas/Carrito/checkout.php';
     }
 
@@ -148,6 +247,35 @@ class CarritoController {
             'direccion' => $_POST['direccion'] ?? ''
         ];
 
+        // Verificar si hay un cliente logueado
+        session_start();
+        $idClienteLogueado = null;
+        
+        if (isset($_SESSION['user_id']) && $_SESSION['user_role_id'] == 2) {
+            // Obtener ID del cliente desde la tabla clientes basado en el user_id
+            require_once 'modelos/ClienteModel.php';
+            $clienteModel = new ClienteModel();
+            $clienteData = $clienteModel->obtenerPorUsuario($_SESSION['user_id']);
+            
+            if ($clienteData) {
+                $idClienteLogueado = $clienteData['id_cliente'];
+                
+                // Usar datos del cliente logueado como predeterminados
+                $clienteInfo = [
+                    'nombre' => $clienteData['nombre'],
+                    'email' => $clienteData['email'],
+                    'telefono' => $clienteData['telefono'] ?? '',
+                    'direccion' => $clienteData['direccion'] ?? ''
+                ];
+                
+                // Permitir que se sobrescriban con datos del formulario si se proporcionan
+                if (!empty($_POST['nombre'])) $clienteInfo['nombre'] = $_POST['nombre'];
+                if (!empty($_POST['email'])) $clienteInfo['email'] = $_POST['email'];
+                if (!empty($_POST['telefono'])) $clienteInfo['telefono'] = $_POST['telefono'];
+                if (!empty($_POST['direccion'])) $clienteInfo['direccion'] = $_POST['direccion'];
+            }
+        }
+
         // Obtener método de pago
         $metodoPago = $_POST['metodo_pago'] ?? 'efectivo';
 
@@ -157,6 +285,11 @@ class CarritoController {
             $factura->setClienteInfo($clienteInfo);
             $factura->setMetodoPago($metodoPago);
             $factura->agregarProductosDesdeCarrito(Carrito::obtenerDatosParaFactura());
+            
+            // Si hay cliente logueado, asignar el ID del cliente a la factura
+            if ($idClienteLogueado) {
+                $factura->setIdCliente($idClienteLogueado);
+            }
             
             // Guardar factura en la base de datos
             $guardadoExitoso = $factura->guardarEnBaseDatos();
@@ -185,6 +318,15 @@ class CarritoController {
      * Vista móvil del carrito (para acceso desde QR)
      */
     public function mobile() {
+        // Verificar sesión para vista móvil
+        session_start();
+        if (!isset($_SESSION['user_id']) || $_SESSION['user_role_id'] != 2) {
+            // No hay cliente logueado, redirigir al login móvil
+            $_SESSION['redirect_after_login'] = "?c=carrito&a=mobile";
+            header('Location: ?controller=usuario&action=loginMobile');
+            exit;
+        }
+        
         $resumenCarrito = Carrito::obtenerResumen();
         include 'vistas/Carrito/mobile_view.php';
     }

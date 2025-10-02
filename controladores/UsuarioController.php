@@ -669,51 +669,236 @@ class UsuarioController {
         }
         include 'vistas/Usuarios/login.php';
     }
+    
+    // Mostrar formulario de login móvil (para usuarios que escanean QR)
+    public function loginMobile() {
+        $this->startSession();
+        
+        // Si ya está logueado, redirigir a donde corresponda
+        if (isset($_SESSION['user_id'])) {
+            if ($_SESSION['user_role_id'] == 1) {
+                header('Location: ?controller=usuario&action=dashboard');
+            } else {
+                // Redirigir a donde venía o al carrito móvil
+                $redirect = $_SESSION['redirect_after_login'] ?? '?c=carrito&a=mobile';
+                unset($_SESSION['redirect_after_login']);
+                header('Location: ' . $redirect);
+            }
+            exit;
+        }
+        
+        // Obtener información del producto si viene desde QR
+        $producto_id = $_GET['producto_id'] ?? null;
+        $producto = null;
+        if ($producto_id) {
+            require_once 'modelos/ProductoModel.php';
+            $productoModel = new ProductoModel();
+            $producto = $productoModel->getById($producto_id);
+        }
+        
+        include 'vistas/Usuarios/login_mobile.php';
+    }
+    
+    // Mostrar formulario de registro para clientes
+    public function registro() {
+        $this->startSession();
+        // Si ya está logueado, redirigir al dashboard
+        if (isset($_SESSION['user_id'])) {
+            header('Location: ?controller=usuario&action=dashboard');
+            exit;
+        }
+        include 'vistas/Usuarios/registro.php';
+    }
+    
+    // Procesar registro de cliente
+    public function procesarRegistro() {
+        $this->startSession();
+        $errores = [];
+        
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            // Validar datos
+            $nombre = trim($_POST['nombre'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $password = $_POST['password'] ?? '';
+            $confirm_password = $_POST['confirm_password'] ?? '';
+            $telefono = trim($_POST['telefono'] ?? '');
+            $direccion = trim($_POST['direccion'] ?? '');
+            
+            // Validaciones
+            if (empty($nombre)) {
+                $errores[] = "El nombre es requerido";
+            }
+            
+            if (empty($email)) {
+                $errores[] = "El email es requerido";
+            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $errores[] = "El email no es válido";
+            }
+            
+            if (empty($password)) {
+                $errores[] = "La contraseña es requerida";
+            } elseif (strlen($password) < 6) {
+                $errores[] = "La contraseña debe tener al menos 6 caracteres";
+            }
+            
+            if ($password !== $confirm_password) {
+                $errores[] = "Las contraseñas no coinciden";
+            }
+            
+            // Verificar si el email ya existe
+            if (empty($errores)) {
+                $usuarioExistente = $this->usuarioModel->getByEmail($email);
+                if ($usuarioExistente) {
+                    $errores[] = "Ya existe una cuenta con este email";
+                }
+            }
+            
+            if (empty($errores)) {
+                try {
+                    // Crear usuario con rol de cliente (ID 2)
+                    $usuario = new Usuario(null, $nombre, $email, $password, 2);
+                    $resultado = $this->usuarioModel->insert($usuario);
+                    
+                    if ($resultado) {
+                        // También crear registro en tabla clientes si existe
+                        try {
+                            require_once 'modelos/ClienteModel.php';
+                            $clienteModel = new ClienteModel();
+                            
+                            // Obtener el ID del usuario recién creado
+                            $usuarioCreado = $this->usuarioModel->getByEmail($email);
+                            if ($usuarioCreado) {
+                                $datosCliente = [
+                                    'nombre' => $nombre,
+                                    'email' => $email,
+                                    'telefono' => $telefono,
+                                    'direccion' => $direccion,
+                                    'id_usuario' => $usuarioCreado->getIdUsuario()
+                                ];
+                                $clienteModel->crear($datosCliente);
+                            }
+                        } catch (Exception $e) {
+                            // Si falla la creación del cliente, continúa (el usuario ya está creado)
+                            error_log("Error al crear cliente: " . $e->getMessage());
+                        }
+                        
+                        // Login automático después del registro exitoso
+                        $result = $this->usuarioModel->authenticate($email, $password);
+                        if ($result) {
+                            $_SESSION['user_id'] = $result['usuario']->getIdUsuario();
+                            $_SESSION['user_name'] = $result['usuario']->getNombre();
+                            $_SESSION['user_email'] = $result['usuario']->getEmail();
+                            $_SESSION['user_role_id'] = $result['usuario']->getIdRol();
+                            $_SESSION['user_role'] = 'Cliente';
+                            
+                            // Redirigir al dashboard simple de cliente
+                            header('Location: ?controller=usuario&action=dashboardCliente&success=registro');
+                            exit;
+                        }
+                    } else {
+                        throw new Exception("Error al crear la cuenta de usuario");
+                    }
+                    
+                } catch (Exception $e) {
+                    $errores[] = "Error en el registro: " . $e->getMessage();
+                }
+            }
+        }
+        
+        if (!empty($errores)) {
+            include 'vistas/Usuarios/registro.php';
+        }
+    }
 
     public function authenticate() {
-            $this->startSession();
-            
-            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-                $email = $_POST['email'] ?? '';
-                $password = $_POST['password'] ?? '';
+        $this->startSession();
+        
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $email = $_POST['email'] ?? '';
+            $password = $_POST['password'] ?? '';
 
-                // Verificar el usuario y la contraseña en la base de datos
-                $result = $this->usuarioModel->authenticate($email, $password);
+            // Verificar el usuario y la contraseña en la base de datos
+            $result = $this->usuarioModel->authenticate($email, $password);
 
-                if ($result) {
-                    // Si la autenticación es exitosa, guardamos los datos del usuario en la sesión
-                    $_SESSION['user_id'] = $result['usuario']->getIdUsuario();
-                    $_SESSION['user_name'] = $result['usuario']->getNombre();
-                    $_SESSION['user_email'] = $result['usuario']->getEmail();
-                    $_SESSION['user_role_id'] = $result['usuario']->getIdRol();
+            if ($result) {
+                // Si la autenticación es exitosa, guardamos los datos del usuario en la sesión
+                $_SESSION['user_id'] = $result['usuario']->getIdUsuario();
+                $_SESSION['user_name'] = $result['usuario']->getNombre();
+                $_SESSION['user_email'] = $result['usuario']->getEmail();
+                $_SESSION['user_role_id'] = $result['usuario']->getIdRol();
 
-                    // Redirigir según el rol del usuario
-                    if ($_SESSION['user_role_id'] == 1) {
-                        // Si el rol es Administrador
-                        header('Location: ?controller=usuario&action=dashboard');  // Redirige al panel de administrador
-                        exit();
-                    } elseif ($_SESSION['user_role_id'] == 2) {
-                        // Si el rol es Cliente
-                        header('Location: ?controller=cliente&action=index_cliente');  // Redirige al panel del cliente
-                        exit();
-                    } else {
-                        // Si el rol no es válido, redirigir al login o mostrar error
-                        header('Location: ?controller=usuario&action=login');
+                // Redirigir según el rol del usuario
+                if ($_SESSION['user_role_id'] == 1) {
+                    // Si el rol es Administrador - ir al dashboard admin
+                    $_SESSION['user_role'] = 'Administrador';
+                    header('Location: ?controller=usuario&action=dashboard');  
+                    exit();
+                } elseif ($_SESSION['user_role_id'] == 2) {
+                    // Si el rol es Cliente - ir al panel simple de cliente
+                    $_SESSION['user_role'] = 'Cliente';
+                    
+                    // Obtener ID del cliente desde la tabla clientes
+                    try {
+                        require_once 'modelos/ClienteModel.php';
+                        $clienteModel = new ClienteModel();
+                        $cliente = $clienteModel->obtenerPorUsuario($_SESSION['user_id']);
+                        if ($cliente) {
+                            $_SESSION['cliente_id'] = $cliente['id_cliente'];
+                        }
+                    } catch (Exception $e) {
+                        // Si no existe en la tabla clientes, continuar sin cliente_id
+                        error_log("Cliente no encontrado en tabla clientes: " . $e->getMessage());
+                    }
+                    
+                    // Verificar si hay redirección pendiente (desde móvil)
+                    if (isset($_SESSION['redirect_after_login'])) {
+                        $redirect = $_SESSION['redirect_after_login'];
+                        unset($_SESSION['redirect_after_login']);
+                        header('Location: ' . $redirect);
                         exit();
                     }
+                    
+                    // Redirigir al dashboard simple de cliente
+                    header('Location: ?controller=usuario&action=dashboardCliente&success=login');
+                    exit();
                 } else {
-                    // Si las credenciales son incorrectas
-                    $error = "Email o contraseña incorrectos";
+                    // Si el rol no es válido, redirigir al login con error
+                    $error = "Rol de usuario no válido";
+                    include 'vistas/Usuarios/login.php';
+                }
+            } else {
+                // Si las credenciales son incorrectas
+                $error = "Email o contraseña incorrectos";
+                
+                // Verificar si es login móvil para mostrar la vista correcta
+                if (isset($_POST['from_mobile']) && $_POST['from_mobile'] == 1) {
+                    // Obtener información del producto si viene desde QR
+                    $producto_id = $_POST['producto_id'] ?? null;
+                    $producto = null;
+                    if ($producto_id) {
+                        require_once 'modelos/ProductoModel.php';
+                        $productoModel = new ProductoModel();
+                        $producto = $productoModel->getById($producto_id);
+                    }
+                    include 'vistas/Usuarios/login_mobile.php';
+                } else {
                     include 'vistas/Usuarios/login.php';
                 }
             }
         }
+    }
 
 
-    // Dashboard del usuario
+    // Dashboard del usuario administrador
     public function dashboard() {
         $this->startSession();
         $this->checkAuthentication();
+        
+        // Solo permitir acceso a administradores
+        if ($_SESSION['user_role_id'] != 1) {
+            header('Location: ?controller=usuario&action=dashboardCliente');
+            exit;
+        }
         
         // Obtener estadísticas de usuarios
         $totalUsuarios = $this->usuarioModel->getTotalUsuarios();
@@ -733,6 +918,79 @@ class UsuarioController {
         $totalCategorias = $categoriaModel->getTotalCategorias();
         
         include 'vistas/Usuarios/dashboard.php';
+    }
+
+    // Dashboard simple para clientes - solo sus facturas
+    public function dashboardCliente() {
+        $this->startSession();
+        $this->checkAuthentication();
+        
+        // Solo permitir acceso a clientes
+        if ($_SESSION['user_role_id'] != 2) {
+            header('Location: ?controller=usuario&action=dashboard');
+            exit;
+        }
+        
+        // Inicializar variables por defecto
+        $misFacturas = [];
+        $totalGastado = 0;
+        $totalFacturas = 0;
+        
+        // Obtener facturas del cliente logueado
+        try {
+            require_once 'modelos/FacturaModel.php';
+            require_once 'modelos/ClienteModel.php';
+            
+            $facturaModel = new FacturaModel();
+            $clienteModel = new ClienteModel();
+            
+            // Obtener el cliente vinculado al usuario logueado
+            $cliente = $clienteModel->obtenerPorUsuario($_SESSION['user_id']);
+            
+            if ($cliente) {
+                // Usar el ID del cliente para obtener sus facturas
+                $cliente_id = $cliente['id_cliente'] ?? $cliente['id'];
+                $misFacturas = $facturaModel->obtenerPorCliente($cliente_id);
+                
+                // Calcular totales
+                $totalFacturas = count($misFacturas);
+                foreach ($misFacturas as $factura) {
+                    $totalGastado += $factura['total'];
+                }
+                
+            } else {
+                // Si no hay cliente vinculado, buscar facturas por datos del usuario
+                // Esto es un fallback por si no está vinculado correctamente
+                try {
+                    $conexion = new mysqli("localhost", "root", "", "productos_iniciales");
+                    if (!$conexion->connect_error) {
+                        $stmt = $conexion->prepare("
+                            SELECT f.* FROM facturas f 
+                            WHERE f.cliente_email = ? OR f.cliente_nombre = ?
+                            ORDER BY f.fecha_factura DESC
+                        ");
+                        $stmt->bind_param("ss", $_SESSION['user_email'], $_SESSION['user_name']);
+                        $stmt->execute();
+                        $result = $stmt->get_result();
+                        
+                        while ($row = $result->fetch_assoc()) {
+                            $misFacturas[] = $row;
+                            $totalGastado += $row['total'];
+                        }
+                        $totalFacturas = count($misFacturas);
+                        $conexion->close();
+                    }
+                } catch (Exception $fallbackError) {
+                    error_log("Error en fallback de facturas: " . $fallbackError->getMessage());
+                }
+            }
+            
+        } catch (Exception $e) {
+            // Si hay error, continuar con valores por defecto
+            error_log("Error al cargar facturas: " . $e->getMessage());
+        }
+        
+        include 'vistas/Usuarios/dashboard_cliente.php';
     }
 
     // Cerrar sesión

@@ -1,5 +1,19 @@
 <?php include 'layout/menu.php'; ?>
 
+<!-- DEBUG TEMPORAL -->
+<?php if (isset($_GET['debug'])): ?>
+<div class="container mt-2">
+    <div class="alert alert-warning">
+        <h5>🔍 DEBUG - Datos del Cliente:</h5>
+        <p><strong>esClienteLogueado:</strong> <?php echo isset($esClienteLogueado) ? ($esClienteLogueado ? 'TRUE' : 'FALSE') : 'NO DEFINIDO'; ?></p>
+        <p><strong>datosCliente:</strong></p>
+        <pre><?php print_r(isset($datosCliente) ? $datosCliente : 'NO DEFINIDO'); ?></pre>
+        <p><strong>Sesión:</strong></p>
+        <pre><?php print_r($_SESSION ?? 'NO HAY SESIÓN'); ?></pre>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="container mt-4">
     <!-- Encabezado -->
     <div class="row justify-content-center">
@@ -17,30 +31,44 @@
                             <div class="col-lg-6">
                                 <h5 class="mb-3">
                                     <i class="fas fa-user"></i> Información del Cliente
+                                    <?php if ($esClienteLogueado): ?>
+                                        <small class="text-success"><i class="fas fa-check-circle"></i> Cliente autenticado</small>
+                                    <?php endif; ?>
                                 </h5>
+                                
+                                <?php if ($esClienteLogueado && $datosCliente): ?>
+                                    <!-- Mostrar datos del cliente logueado con opción de editar -->
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle"></i> 
+                                        Sus datos han sido cargados automáticamente. Puede modificarlos si es necesario.
+                                    </div>
+                                <?php endif; ?>
                                 
                                 <div class="mb-3">
                                     <label for="nombre" class="form-label">Nombre Completo *</label>
                                     <input type="text" class="form-control" id="nombre" name="nombre" 
+                                           value="<?php echo isset($datosCliente) ? htmlspecialchars($datosCliente['nombre']) : ''; ?>"
                                            placeholder="Ingrese su nombre completo" required>
                                 </div>
                                 
                                 <div class="mb-3">
                                     <label for="email" class="form-label">Correo Electrónico</label>
                                     <input type="email" class="form-control" id="email" name="email" 
+                                           value="<?php echo isset($datosCliente) ? htmlspecialchars($datosCliente['email']) : ''; ?>"
                                            placeholder="ejemplo@correo.com">
                                 </div>
                                 
                                 <div class="mb-3">
                                     <label for="telefono" class="form-label">Teléfono</label>
                                     <input type="tel" class="form-control" id="telefono" name="telefono" 
+                                           value="<?php echo isset($datosCliente) ? htmlspecialchars($datosCliente['telefono']) : ''; ?>"
                                            placeholder="(123) 456-7890">
                                 </div>
                                 
                                 <div class="mb-3">
                                     <label for="direccion" class="form-label">Dirección</label>
                                     <textarea class="form-control" id="direccion" name="direccion" rows="3" 
-                                              placeholder="Dirección completa para entrega"></textarea>
+                                              placeholder="Dirección completa para entrega"><?php echo isset($datosCliente) ? htmlspecialchars($datosCliente['direccion']) : ''; ?></textarea>
                                 </div>
                                 
                                 <!-- Método de pago -->

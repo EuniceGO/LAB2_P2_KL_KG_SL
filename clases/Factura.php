@@ -332,26 +332,46 @@ class Factura {
      */
     public function guardarEnBaseDatos() {
         try {
-            // Validar y limpiar datos del cliente
-            $datosCliente = $this->clienteModel->limpiarDatos($this->clienteInfo);
-            $erroresValidacion = $this->clienteModel->validarDatos($datosCliente);
-            
-            if (!empty($erroresValidacion)) {
-                error_log("Error de validación de cliente: " . json_encode($erroresValidacion));
-                // Usar datos por defecto si hay errores de validación
-                $datosCliente = [
-                    'nombre' => $this->clienteInfo['nombre'] ?? 'Cliente General',
-                    'email' => $this->clienteInfo['email'] ?? 'cliente@general.com',
-                    'telefono' => $this->clienteInfo['telefono'] ?? '',
-                    'direccion' => $this->clienteInfo['direccion'] ?? ''
-                ];
-            }
-            
-            // Insertar o actualizar cliente y obtener ID
-            $this->idCliente = $this->clienteModel->insertarOActualizar($datosCliente);
-            
-            if (!$this->idCliente) {
-                throw new Exception("No se pudo guardar la información del cliente");
+            // Si ya hay un cliente asignado (logueado), usarlo directamente
+            if ($this->idCliente !== null) {
+                // Cliente ya establecido, obtener sus datos desde la base de datos
+                require_once 'modelos/ClienteModel.php';
+                $clienteModel = new ClienteModel();
+                $datosClienteExistente = $clienteModel->obtenerPorId($this->idCliente);
+                
+                if ($datosClienteExistente) {
+                    // Usar datos del cliente existente pero permitir actualizaciones desde formulario
+                    $datosCliente = [
+                        'nombre' => $this->clienteInfo['nombre'] ?? $datosClienteExistente['nombre'],
+                        'email' => $this->clienteInfo['email'] ?? $datosClienteExistente['email'],
+                        'telefono' => $this->clienteInfo['telefono'] ?? $datosClienteExistente['telefono'],
+                        'direccion' => $this->clienteInfo['direccion'] ?? $datosClienteExistente['direccion']
+                    ];
+                } else {
+                    throw new Exception("Cliente logueado no encontrado en la base de datos");
+                }
+            } else {
+                // No hay cliente logueado, crear o buscar cliente basado en email
+                $datosCliente = $this->clienteModel->limpiarDatos($this->clienteInfo);
+                $erroresValidacion = $this->clienteModel->validarDatos($datosCliente);
+                
+                if (!empty($erroresValidacion)) {
+                    error_log("Error de validación de cliente: " . json_encode($erroresValidacion));
+                    // Usar datos por defecto si hay errores de validación
+                    $datosCliente = [
+                        'nombre' => $this->clienteInfo['nombre'] ?? 'Cliente General',
+                        'email' => $this->clienteInfo['email'] ?? 'cliente@general.com',
+                        'telefono' => $this->clienteInfo['telefono'] ?? '',
+                        'direccion' => $this->clienteInfo['direccion'] ?? ''
+                    ];
+                }
+                
+                // Insertar o actualizar cliente y obtener ID
+                $this->idCliente = $this->clienteModel->insertarOActualizar($datosCliente);
+                
+                if (!$this->idCliente) {
+                    throw new Exception("No se pudo guardar la información del cliente");
+                }
             }
             
             // Preparar datos de la factura
@@ -450,6 +470,14 @@ class Factura {
      */
     public function getIdCliente() {
         return $this->idCliente;
+    }
+    
+    /**
+     * Establece el ID del cliente (para clientes ya logueados)
+     * @param int $idCliente - ID del cliente
+     */
+    public function setIdCliente($idCliente) {
+        $this->idCliente = $idCliente;
     }
     
     /**

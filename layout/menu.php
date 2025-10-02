@@ -30,24 +30,92 @@ if (session_status() == PHP_SESSION_NONE) {
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <?php if (isset($_SESSION['user_id'])): ?>
+                        
+                        <?php if ($_SESSION['user_role_id'] == 1): ?>
+                            <!-- Menú completo para ADMINISTRADORES -->
+                            <li class="nav-item">
+                                <a class="nav-link" href="?controller=usuario&action=dashboard">
+                                    <i class="fas fa-tachometer-alt"></i> Dashboard Admin
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="?c=categoria&a=index">
+                                    <i class="fas fa-tags"></i> Categorías
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="?c=producto&a=index">
+                                    <i class="fas fa-box"></i> Productos
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="?c=imagen&a=index">
+                                    <i class="fas fa-images"></i> Imágenes
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link position-relative" href="?c=carrito&a=index">
+                                    <i class="fas fa-shopping-cart"></i> Carrito
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart-counter">
+                                        0
+                                    </span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="?c=carrito&a=historial">
+                                    <i class="fas fa-receipt"></i> Facturas
+                                </a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-users-cog"></i> Administración
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="vistas/Clientes/index.php">
+                                        <i class="fas fa-users"></i> Clientes
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="?controller=usuario&action=index">
+                                        <i class="fas fa-user-cog"></i> Usuarios
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="?controller=role&action=index">
+                                        <i class="fas fa-user-tag"></i> Roles
+                                    </a></li>
+                                </ul>
+                            </li>
+                            
+                        <?php elseif ($_SESSION['user_role_id'] == 2): ?>
+                            <!-- Menú simplificado para CLIENTES -->
+                            <li class="nav-item">
+                                <a class="nav-link" href="?controller=usuario&action=dashboardCliente">
+                                    <i class="fas fa-tachometer-alt"></i> Mi Panel
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="?c=producto&a=catalogo">
+                                    <i class="fas fa-store"></i> Catálogo
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link position-relative" href="?c=carrito&a=index">
+                                    <i class="fas fa-shopping-cart"></i> Mi Carrito
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart-counter">
+                                        0
+                                    </span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="?controller=usuario&action=dashboardCliente">
+                                    <i class="fas fa-history"></i> Mis Compras
+                                </a>
+                            </li>
+                            
+                        <?php endif; ?>
+                        
+                    <?php else: ?>
+                        <!-- Menú para usuarios NO LOGUEADOS -->
                         <li class="nav-item">
-                            <a class="nav-link" href="?controller=usuario&action=dashboard">
-                                <i class="fas fa-tachometer-alt"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="?c=categoria&a=index">
-                                <i class="fas fa-tags"></i> Categorías
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="?c=producto&a=index">
-                                <i class="fas fa-box"></i> Productos
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="?c=imagen&a=index">
-                                <i class="fas fa-images"></i> Imágenes
+                            <a class="nav-link" href="?c=producto&a=catalogo">
+                                <i class="fas fa-store"></i> Catálogo
                             </a>
                         </li>
                         <li class="nav-item">
@@ -58,58 +126,69 @@ if (session_status() == PHP_SESSION_NONE) {
                                 </span>
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="?c=carrito&a=historial">
-                                <i class="fas fa-receipt"></i> Facturas
-                            </a>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-users-cog"></i> Administración
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="vistas/Clientes/index.php">
-                                    <i class="fas fa-users"></i> Clientes
-                                </a></li>
-                                <li><a class="dropdown-item" href="?controller=usuario&action=index">
-                                    <i class="fas fa-user-cog"></i> Usuarios
-                                </a></li>
-                                <li><a class="dropdown-item" href="?controller=role&action=index">
-                                    <i class="fas fa-user-tag"></i> Roles
-                                </a></li>
-                            </ul>
-                        </li>
                     <?php endif; ?>
                 </ul>
                 
                 <ul class="navbar-nav ms-auto">
                     <?php if (isset($_SESSION['user_id'])): ?>
+                        <?php if ($_SESSION['user_role_id'] == 1): ?>
+                            <!-- Menú para administradores -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-user-cog"></i> <?php echo htmlspecialchars($_SESSION['user_name']); ?>
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><h6 class="dropdown-header">
+                                        <i class="fas fa-user-tag"></i> Administrador
+                                    </h6></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="?controller=usuario&action=profile">
+                                        <i class="fas fa-user-edit"></i> Mi Perfil
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="?controller=usuario&action=changePassword">
+                                        <i class="fas fa-key"></i> Cambiar Contraseña
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="?controller=usuario&action=logout">
+                                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                                    </a></li>
+                                </ul>
+                            </li>
+                        <?php elseif ($_SESSION['user_role_id'] == 2): ?>
+                            <!-- Menú para clientes -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="clienteDropdown" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-user-circle"></i> <?php echo htmlspecialchars($_SESSION['user_name']); ?>
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><h6 class="dropdown-header">
+                                        <i class="fas fa-user-tag"></i> Cliente
+                                    </h6></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="?controller=usuario&action=dashboardCliente">
+                                        <i class="fas fa-tachometer-alt"></i> Mi Panel
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="?controller=usuario&action=logout">
+                                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                                    </a></li>
+                                </ul>
+                            </li>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <!-- Menú para usuarios no logueados -->
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-user"></i> <?php echo htmlspecialchars($_SESSION['user_name']); ?>
+                            <a class="nav-link dropdown-toggle" href="#" id="guestDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user"></i> Mi Cuenta
                             </a>
                             <ul class="dropdown-menu">
-                                <li><h6 class="dropdown-header">
-                                    <i class="fas fa-user-tag"></i> <?php echo htmlspecialchars($_SESSION['user_role']); ?>
-                                </h6></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="?controller=usuario&action=profile">
-                                    <i class="fas fa-user-edit"></i> Mi Perfil
+                                <li><a class="dropdown-item" href="?controller=usuario&action=login">
+                                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
                                 </a></li>
-                                <li><a class="dropdown-item" href="?controller=usuario&action=changePassword">
-                                    <i class="fas fa-key"></i> Cambiar Contraseña
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="?controller=usuario&action=logout">
-                                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                                <li><a class="dropdown-item" href="?controller=usuario&action=registro">
+                                    <i class="fas fa-user-plus"></i> Registrarse
                                 </a></li>
                             </ul>
-                        </li>
-                    <?php else: ?>
-                        <li class="nav-item">
-                            <a class="nav-link" href="?controller=usuario&action=login">
-                                <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
-                            </a>
                         </li>
                     <?php endif; ?>
                 </ul>

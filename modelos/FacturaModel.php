@@ -391,5 +391,132 @@ class FacturaModel {
             return [];
         }
     }
+    
+    /**
+     * Obtener facturas por cliente (método para sistema de autenticación)
+     * @param int $idCliente ID del cliente
+     * @return array Lista de facturas del cliente
+     */
+    public function obtenerPorCliente($idCliente) {
+        try {
+            $sql = "SELECT f.*, 
+                           c.nombre as cliente_nombre,
+                           c.email as cliente_email
+                    FROM facturas f
+                    LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+                    WHERE f.id_cliente = ?
+                    ORDER BY f.fecha_factura DESC";
+            
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("i", $idCliente);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $facturas = [];
+            while ($row = $result->fetch_assoc()) {
+                $facturas[] = $row;
+            }
+            
+            return $facturas;
+        } catch (Exception $e) {
+            error_log("Error al obtener facturas por cliente: " . $e->getMessage());
+            return [];
+        }
+    }
+    
+    /**
+     * Obtener factura por ID
+     * @param int $idFactura ID de la factura
+     * @return array|null Datos de la factura o null si no existe
+     */
+    public function obtenerPorId($idFactura) {
+        try {
+            $sql = "SELECT f.*, 
+                           c.nombre as cliente_nombre,
+                           c.email as cliente_email,
+                           c.telefono as cliente_telefono,
+                           c.direccion as cliente_direccion
+                    FROM facturas f
+                    LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+                    WHERE f.id_factura = ?
+                    LIMIT 1";
+            
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("i", $idFactura);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                return $result->fetch_assoc();
+            }
+            
+            return null;
+        } catch (Exception $e) {
+            error_log("Error al obtener factura por ID: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Obtener detalles de productos de una factura
+     * @param int $idFactura ID de la factura
+     * @return array Lista de productos de la factura
+     */
+    public function obtenerDetallesPorFactura($idFactura) {
+        try {
+            $sql = "SELECT fd.*, 
+                           p.nombre as producto_nombre,
+                           p.descripcion as producto_descripcion,
+                           p.imagen_url as producto_imagen
+                    FROM factura_detalles fd
+                    LEFT JOIN productos p ON fd.id_producto = p.id_producto
+                    WHERE fd.id_factura = ?
+                    ORDER BY fd.id_detalle";
+            
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("i", $idFactura);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $detalles = [];
+            while ($row = $result->fetch_assoc()) {
+                $detalles[] = $row;
+            }
+            
+            return $detalles;
+        } catch (Exception $e) {
+            error_log("Error al obtener detalles de factura: " . $e->getMessage());
+            return [];
+        }
+    }
+    
+    /**
+     * Obtener facturas por datos de usuario (fallback)
+     * @param string $userEmail Email del usuario
+     * @param string $userName Nombre del usuario
+     * @return array Lista de facturas
+     */
+    public function obtenerPorDatosUsuario($userEmail, $userName) {
+        try {
+            $sql = "SELECT * FROM facturas 
+                    WHERE cliente_email = ? OR cliente_nombre = ?
+                    ORDER BY fecha_factura DESC";
+            
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("ss", $userEmail, $userName);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $facturas = [];
+            while ($row = $result->fetch_assoc()) {
+                $facturas[] = $row;
+            }
+            
+            return $facturas;
+        } catch (Exception $e) {
+            error_log("Error al obtener facturas por datos de usuario: " . $e->getMessage());
+            return [];
+        }
+    }
 }
 ?>

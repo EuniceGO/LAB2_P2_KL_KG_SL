@@ -116,8 +116,54 @@ class ProductoController {
     
     // Método para vista móvil (acceso desde código QR)
     public function viewMobile($id) {
+        // Verificar sesión antes de mostrar producto
+        session_start();
+        
+        // Verificar si hay un cliente logueado
+        if (!isset($_SESSION['user_id']) || $_SESSION['user_role_id'] != 2) {
+            // No hay cliente logueado, redirigir al login móvil
+            // Guardar el ID del producto para redirigir después del login
+            $_SESSION['redirect_after_login'] = "?c=producto&a=viewMobile&id=" . $id;
+            header('Location: ?controller=usuario&action=loginMobile&producto_id=' . $id);
+            exit;
+        }
+        
+        // Cliente logueado, mostrar producto
         $producto = $this->productoModel->getById($id);
-        include 'vistas/Productos/view_mobile.php';
+        
+        if (!$producto) {
+            include 'vistas/Productos/mobile_not_found.php';
+            return;
+        }
+        
+        // Obtener información de la categoría si es necesario
+        if ($producto->getIdCategoria()) {
+            require_once 'modelos/CategoriaModel.php';
+            $categoriaModel = new CategoriaModel();
+            $categoria = $categoriaModel->getById($producto->getIdCategoria());
+        }
+        
+        include 'vistas/Productos/mobile_view.php';
+    }
+    
+    public function catalogo() {
+        // Vista de catálogo para clientes
+        $buscar = isset($_GET['buscar']) ? $_GET['buscar'] : null;
+        $categoria = isset($_GET['categoria']) ? $_GET['categoria'] : null;
+        
+        if ($buscar) {
+            $productos = $this->productoModel->search($buscar);
+        } elseif ($categoria) {
+            $productos = $this->productoModel->getByCategoria($categoria);
+        } else {
+            $productos = $this->productoModel->getAll();
+        }
+        
+        // Obtener categorías para el filtro
+        $categoriaModel = new CategoriaModel();
+        $categorias = $categoriaModel->getAll();
+        
+        include 'vistas/Productos/catalogo.php';
     }
 }
 ?>

@@ -6,7 +6,8 @@ class Contenido {
         "imagen"    => "controladores/ImagenController.php",
         "usuario"   => "controladores/UsuarioController.php",
         "role"      => "controladores/RoleController.php",
-        "carrito"   => "controladores/CarritoController.php"
+        "carrito"   => "controladores/CarritoController.php",
+        "clienteauth" => "controladores/ClienteAuthController.php"
     ];    
 
     public static function obtenerContenido($clave) {

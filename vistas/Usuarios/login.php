@@ -84,6 +84,13 @@
         </form>
 
         <div class="text-center mt-4">
+            <p class="mb-2">¿No tienes una cuenta?</p>
+            <a href="?controller=usuario&action=registro" class="btn btn-outline-primary">
+                <i class="fas fa-user-plus"></i> Registrarse
+            </a>
+        </div>
+
+        <div class="text-center mt-3">
             <p class="text-muted">Sistema de Gestión de Productos</p>
         </div>
     </div>

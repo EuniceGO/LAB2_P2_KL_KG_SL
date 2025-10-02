@@ -276,5 +276,109 @@ class ClienteModel {
             'direccion' => trim($datos['direccion'] ?? '')
         ];
     }
+    
+    /**
+     * Métodos adicionales para sistema de autenticación de clientes
+     */
+    
+    /**
+     * Crear nuevo cliente con ID de usuario
+     * @param array $datosCliente Datos del cliente incluyendo id_usuario
+     * @return int ID del cliente creado
+     */
+    public function crear($datosCliente) {
+        // Primero verificar si la tabla tiene la columna id_usuario
+        $checkColumn = "SHOW COLUMNS FROM clientes LIKE 'id_usuario'";
+        $result = $this->conn->query($checkColumn);
+        
+        if ($result && $result->num_rows > 0) {
+            // La columna existe, usar consulta con id_usuario
+            $sql = "INSERT INTO clientes (nombre, email, telefono, direccion, id_usuario) 
+                    VALUES (?, ?, ?, ?, ?)";
+            
+            $stmt = $this->conn->prepare($sql);
+            if (!$stmt) {
+                throw new Exception("Error preparando consulta: " . $this->conn->error);
+            }
+            
+            // Preparar variables para bind_param
+            $telefono = $datosCliente['telefono'] ?? '';
+            $direccion = $datosCliente['direccion'] ?? '';
+            
+            $stmt->bind_param("ssssi", 
+                $datosCliente['nombre'],
+                $datosCliente['email'],
+                $telefono,
+                $direccion,
+                $datosCliente['id_usuario']
+            );
+        } else {
+            // La columna no existe, usar consulta sin id_usuario
+            $sql = "INSERT INTO clientes (nombre, email, telefono, direccion) 
+                    VALUES (?, ?, ?, ?)";
+            
+            $stmt = $this->conn->prepare($sql);
+            if (!$stmt) {
+                throw new Exception("Error preparando consulta: " . $this->conn->error);
+            }
+            
+            // Preparar variables para bind_param
+            $telefono = $datosCliente['telefono'] ?? '';
+            $direccion = $datosCliente['direccion'] ?? '';
+            
+            $stmt->bind_param("ssss", 
+                $datosCliente['nombre'],
+                $datosCliente['email'],
+                $telefono,
+                $direccion
+            );
+        }
+        
+        if ($stmt->execute()) {
+            return $this->conn->insert_id;
+        } else {
+            throw new Exception("Error al crear cliente: " . $this->conn->error);
+        }
+    }
+    
+    /**
+     * Obtener cliente por ID de usuario
+     * @param int $idUsuario ID del usuario
+     * @return array|null Datos del cliente o null si no existe
+     */
+    public function obtenerPorUsuario($idUsuario) {
+        // Verificar si la columna id_usuario existe
+        $checkColumn = "SHOW COLUMNS FROM clientes LIKE 'id_usuario'";
+        $result = $this->conn->query($checkColumn);
+        
+        if ($result && $result->num_rows > 0) {
+            // La columna existe, buscar por id_usuario
+            $sql = "SELECT * FROM clientes WHERE id_usuario = ? LIMIT 1";
+            $stmt = $this->conn->prepare($sql);
+            if (!$stmt) {
+                throw new Exception("Error preparando consulta: " . $this->conn->error);
+            }
+            
+            $stmt->bind_param("i", $idUsuario);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                return $result->fetch_assoc();
+            }
+        }
+        
+        // Si no existe la columna o no se encuentra el cliente, retornar null
+        return null;
+    }
+    
+    /**
+     * Obtener cliente por ID (alias para buscarPorId)
+     * @param int $id ID del cliente
+     * @return array|null Datos del cliente o null si no existe
+     */
+    public function obtenerPorId($id) {
+        return $this->buscarPorId($id);
+    }
 }
 ?>

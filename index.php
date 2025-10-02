@@ -11,7 +11,14 @@ $archivo = Contenido::obtenerContenido($c);
 
 if (file_exists($archivo)) {
     require_once $archivo;
-    $controllerName = ucfirst($c) . "Controller";
+    
+    // Determinar nombre del controlador
+    if (strtolower($c) === 'clienteauth') {
+        $controllerName = "ClienteAuthController";
+    } else {
+        $controllerName = ucfirst($c) . "Controller";
+    }
+    
     $controller = new $controllerName();
 
     if (method_exists($controller, $a)) {

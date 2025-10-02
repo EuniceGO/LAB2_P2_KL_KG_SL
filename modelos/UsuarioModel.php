@@ -200,5 +200,41 @@ class UsuarioModel {
                 ORDER BY total_usuarios DESC";
         return $this->cn->consulta($sql);
     }
+    
+    // Métodos adicionales para sistema de clientes
+    
+    // Obtener usuario por email (alias para getByEmail para compatibilidad)
+    public function obtenerPorEmail($email) {
+        $usuario = $this->getByEmail($email);
+        if ($usuario) {
+            return [
+                'id_usuario' => $usuario->getIdUsuario(),
+                'nombre' => $usuario->getNombre(),
+                'email' => $usuario->getEmail(),
+                'password' => $usuario->getPassword(),
+                'id_role' => $usuario->getIdRol()
+            ];
+        }
+        return null;
+    }
+    
+    // Crear nuevo usuario (para registro de clientes)
+    public function crear($datos) {
+        $sql = "INSERT INTO usuarios (nombre, email, password, id_rol) VALUES (?, ?, ?, ?)";
+        $resultado = $this->cn->ejecutar($sql, [
+            $datos['nombre'] ?? $datos['email'], // Si no hay nombre, usar email
+            $datos['email'],
+            $datos['password'],
+            $datos['id_role']
+        ]);
+        
+        if ($resultado) {
+            // Obtener el ID del usuario recién creado
+            $sql = "SELECT LAST_INSERT_ID() as id";
+            $result = $this->cn->consulta($sql);
+            return $result[0]['id'];
+        }
+        return false;
+    }
 }
 ?>
