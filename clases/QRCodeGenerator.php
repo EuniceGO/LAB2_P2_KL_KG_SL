@@ -79,7 +79,7 @@ class QRCodeGenerator {
     private static function getBaseUrl() {
         // Configuración manual de IP para WiFi
         // IP configurada manualmente para acceso desde celular en WiFi
-        $host = '192.168.1.23';
+        $host = '192.168.1.24';
         
         $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
         

@@ -715,9 +715,22 @@ class UsuarioController {
         $this->startSession();
         $this->checkAuthentication();
         
-        // Obtener estadísticas
+        // Obtener estadísticas de usuarios
         $totalUsuarios = $this->usuarioModel->getTotalUsuarios();
         $usuariosPorRol = $this->usuarioModel->getUsuariosPorRol();
+        
+        // Obtener estadísticas de facturas/ventas
+        require_once 'modelos/FacturaModel.php';
+        require_once 'modelos/ProductoModel.php';
+        require_once 'modelos/CategoriaModel.php';
+        
+        $facturaModel = new FacturaModel();
+        $productoModel = new ProductoModel();
+        $categoriaModel = new CategoriaModel();
+        
+        $estadisticasFacturas = $facturaModel->obtenerEstadisticasVentas();
+        $totalProductos = $productoModel->getTotalProductos();
+        $totalCategorias = $categoriaModel->getTotalCategorias();
         
         include 'vistas/Usuarios/dashboard.php';
     }
