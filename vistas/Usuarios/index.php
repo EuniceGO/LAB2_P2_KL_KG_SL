@@ -11,6 +11,13 @@
         </a>
     </div>
 
+    <!-- Sección de Reportes -->
+    <div class="d-flex justify-content-start mb-4">
+        <a href="?controller=usuario&action=verReportes" class="btn btn-info">
+            <i class="fas fa-chart-bar"></i> Ver Reportes
+        </a>
+    </div>
+
     <!-- Mensajes de éxito/error -->
     <?php if (isset($_GET['success'])): ?>
         <div class="alert alert-success alert-dismissible fade show" role="alert">

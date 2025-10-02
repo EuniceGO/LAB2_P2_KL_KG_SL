@@ -172,14 +172,31 @@ class ProductoModel {
         $productos = [];
         foreach ($results as $row) {
             $productos[] = new Producto(
-                $row['id_producto'], 
-                $row['nombre_producto'], 
-                $row['precio'], 
+                $row['id_producto'],
+                $row['nombre_producto'],
+                $row['precio'],
                 $row['id_categoria'],
                 $row['codigo_qr']
             );
         }
         return $productos;
+    }
+
+    // Obtener total de productos
+    public function getTotalProductos() {
+        $sql = "SELECT COUNT(*) as total FROM Productos";
+        $results = $this->cn->consulta($sql);
+        return $results[0]['total'];
+    }
+
+    // Obtener productos por categoría
+    public function getProductosPorCategoria() {
+        $sql = "SELECT c.nombre as categoria, COUNT(p.id_producto) as total_productos
+                FROM Categorias c
+                LEFT JOIN Productos p ON c.id_categoria = p.id_categoria
+                GROUP BY c.id_categoria, c.nombre
+                ORDER BY total_productos DESC";
+        return $this->cn->consulta($sql);
     }
 }
 ?>

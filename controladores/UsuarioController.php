@@ -2,6 +2,10 @@
 require_once 'modelos/UsuarioModel.php';
 require_once 'modelos/RoleModel.php';
 require_once 'clases/Usuario.php';
+require_once 'modelos/ProductoModel.php';
+// Removed require_once 'modelos/Model.php'; because modelos/Model.php does not exist
+require_once __DIR__ . '/../libs/fpdf186/fpdf.php';
+// Removed require_once('tcpdf_include.php'); because the file does not exist and is not used in the current code
 
 class UsuarioController {
     private $usuarioModel;
@@ -10,6 +14,495 @@ class UsuarioController {
     public function __construct() {
         $this->usuarioModel = new UsuarioModel();
         $this->roleModel = new RoleModel();
+    }
+
+    // Acción para mostrar reportes y gráficos
+    public function verReportes() {
+        $this->startSession();
+        $this->checkAuthentication();
+
+        // Cargar modelos necesarios
+        require_once 'modelos/ProductoModel.php';
+        require_once 'modelos/CategoriaModel.php';
+
+        $productoModel = new ProductoModel();
+        $categoriaModel = new CategoriaModel();
+
+        // Obtener datos para reportes
+        $totalUsuarios = $this->usuarioModel->getTotalUsuarios();
+        $usuariosPorRol = $this->usuarioModel->getUsuariosPorRol();
+
+        $totalProductos = $productoModel->getTotalProductos();
+        $productosPorCategoria = $productoModel->getProductosPorCategoria();
+
+        $totalCategorias = $categoriaModel->getTotalCategorias();
+
+        include 'vistas/Usuarios/reportes.php';
+    }
+
+    // Generar reporte PDF de usuarios
+    public function generarReporteUsuarios() {
+        $this->startSession();
+        $this->checkAuthentication();
+
+        require_once 'libs/fpdf186/fpdf.php';
+
+        $usuarios = $this->usuarioModel->getAll();
+        $usuariosPorRol = $this->usuarioModel->getUsuariosPorRol();
+
+        // Generate chart image for users by role
+        $labels = [];
+        $data = [];
+        foreach ($usuariosPorRol as $rol) {
+            $labels[] = $rol['rol'];
+            $data[] = $rol['total_usuarios'];
+        }
+
+        $chartConfig = json_encode([
+            'type' => 'pie',
+            'data' => [
+                'labels' => $labels,
+                'datasets' => [[
+                    'data' => $data,
+                    'backgroundColor' => ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'],
+                    'borderWidth' => 1,
+                    'borderColor' => '#fff'
+                ]]
+            ],
+            'options' => [
+                'plugins' => [
+                    'legend' => ['display' => false],
+                    'datalabels' => [
+                        'display' => true,
+                        'color' => 'white',
+                        'font' => ['size' => 12, 'weight' => 'bold'],
+                        'formatter' => 'function(value, context) { var total = context.dataset.data.reduce((a,b)=>a+b); return Math.round(value / total * 100) + "%"; }'
+                    ]
+                ]
+            ]
+        ]);
+
+        $chartUrl = 'https://quickchart.io/chart?c=' . urlencode($chartConfig);
+        $chartImage = file_get_contents($chartUrl);
+        $imagePath = sys_get_temp_dir() . '/chart_usuarios.png';
+        file_put_contents($imagePath, $chartImage);
+
+        $pdf = new FPDF();
+        $pdf->AddPage();
+
+        // Header
+        $pdf->SetFillColor(102, 126, 234);
+        $pdf->Rect(0, 0, 210, 30, 'F');
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 20);
+        $pdf->Cell(0, 15, 'Sistema de Gestion', 0, 1, 'C');
+        $pdf->SetFont('Arial', '', 12);
+        $pdf->Cell(0, 5, 'Reporte de Usuarios - ' . date('d/m/Y'), 0, 1, 'C');
+        $pdf->Ln(10);
+
+        // Chart
+        if (file_exists($imagePath)) {
+            $pdf->Image($imagePath, 60, 40, 90, 60);
+            $pdf->Ln(70);
+        }
+
+        // Table
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->SetFillColor(240, 240, 240);
+        $pdf->Cell(15, 10, 'ID', 1, 0, 'C', true);
+        $pdf->Cell(50, 10, 'Nombre', 1, 0, 'C', true);
+        $pdf->Cell(70, 10, 'Email', 1, 0, 'C', true);
+        $pdf->Cell(30, 10, 'Rol', 1, 1, 'C', true);
+
+        $pdf->SetFont('Arial', '', 10);
+        $fill = false;
+        foreach ($usuarios as $usuario) {
+            $pdf->SetFillColor(255, 255, 255);
+            if ($fill) $pdf->SetFillColor(248, 248, 248);
+            $pdf->Cell(15, 8, $usuario->getIdUsuario(), 1, 0, 'C', $fill);
+            $pdf->Cell(50, 8, $usuario->getNombre(), 1, 0, 'L', $fill);
+            $pdf->Cell(70, 8, $usuario->getEmail(), 1, 0, 'L', $fill);
+            $pdf->Cell(30, 8, $usuario->getIdRol(), 1, 1, 'C', $fill);
+            $fill = !$fill;
+        }
+
+        // Footer
+        $pdf->SetY(-15);
+        $pdf->SetFont('Arial', 'I', 8);
+        $pdf->Cell(0, 10, 'Generado el ' . date('d/m/Y H:i'), 0, 0, 'C');
+
+        if (file_exists($imagePath)) unlink($imagePath);
+
+        $pdf->Output('D', 'reporte_usuarios.pdf');
+    }
+
+    // Generar reporte Excel de usuarios
+    public function generarReporteUsuariosExcel() {
+        $this->startSession();
+        $this->checkAuthentication();
+
+        $usuarios = $this->usuarioModel->getAll();
+
+        header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+        header('Content-Disposition: attachment; filename=reporte_usuarios.xls');
+        header('Cache-Control: max-age=0');
+
+        echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+        echo '<head>';
+        echo '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />';
+        echo '<style>';
+        echo 'table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }';
+        echo 'th, td { border: 1px solid #000; padding: 8px; text-align: left; }';
+        echo 'th { background-color: #4CAF50; color: white; font-weight: bold; }';
+        echo 'tr:nth-child(even) { background-color: #f2f2f2; }';
+        echo 'tr:nth-child(odd) { background-color: #ffffff; }';
+        echo 'h2 { color: #333; text-align: center; }';
+        echo '</style>';
+        echo '</head>';
+        echo '<body>';
+        echo '<h2>Reporte de Usuarios</h2>';
+        echo '<table>';
+        echo '<thead>';
+        echo '<tr>';
+        echo '<th>ID</th>';
+        echo '<th>Nombre</th>';
+        echo '<th>Email</th>';
+        echo '<th>Rol</th>';
+        echo '</tr>';
+        echo '</thead>';
+        echo '<tbody>';
+
+        foreach ($usuarios as $usuario) {
+            echo '<tr>';
+            echo '<td>' . $usuario->getIdUsuario() . '</td>';
+            echo '<td>' . htmlspecialchars($usuario->getNombre()) . '</td>';
+            echo '<td>' . htmlspecialchars($usuario->getEmail()) . '</td>';
+            echo '<td>' . $usuario->getIdRol() . '</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody>';
+        echo '</table>';
+        echo '</body>';
+        echo '</html>';
+        exit;
+    }
+
+    // Generar reporte PDF de productos
+    public function generarReporteProductos() {
+        $this->startSession();
+        $this->checkAuthentication();
+
+        require_once 'libs/fpdf186/fpdf.php';
+        require_once 'modelos/ProductoModel.php';
+
+        $productoModel = new ProductoModel();
+        $productos = $productoModel->getAll();
+        $productosPorCategoria = $productoModel->getProductosPorCategoria();
+
+        // Generate chart image for products by category
+        $labels = [];
+        $data = [];
+        foreach ($productosPorCategoria as $cat) {
+            $labels[] = $cat['categoria'];
+            $data[] = $cat['total_productos'];
+        }
+
+        $chartConfig = json_encode([
+            'type' => 'bar',
+            'data' => [
+                'labels' => $labels,
+                'datasets' => [[
+                    'label' => 'Productos',
+                    'data' => $data,
+                    'backgroundColor' => 'rgba(54, 162, 235, 0.8)',
+                    'borderColor' => 'rgba(54, 162, 235, 1)',
+                    'borderWidth' => 1
+                ]]
+            ],
+            'options' => [
+                'scales' => [
+                    'y' => ['beginAtZero' => true]
+                ],
+                'plugins' => [
+                    'legend' => ['display' => false],
+                    'datalabels' => [
+                        'display' => true,
+                        'color' => 'black',
+                        'font' => ['size' => 12, 'weight' => 'bold'],
+                        'anchor' => 'end',
+                        'align' => 'top'
+                    ]
+                ]
+            ]
+        ]);
+
+        $chartUrl = 'https://quickchart.io/chart?c=' . urlencode($chartConfig);
+        $chartImage = file_get_contents($chartUrl);
+        $imagePath = sys_get_temp_dir() . '/chart_productos.png';
+        file_put_contents($imagePath, $chartImage);
+
+        $pdf = new FPDF();
+        $pdf->AddPage();
+
+        // Header
+        $pdf->SetFillColor(102, 126, 234);
+        $pdf->Rect(0, 0, 210, 30, 'F');
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 20);
+        $pdf->Cell(0, 15, 'Sistema de Gestion', 0, 1, 'C');
+        $pdf->SetFont('Arial', '', 12);
+        $pdf->Cell(0, 5, 'Reporte de Productos - ' . date('d/m/Y'), 0, 1, 'C');
+        $pdf->Ln(10);
+
+        // Chart
+        if (file_exists($imagePath)) {
+            $pdf->Image($imagePath, 30, 40, 150, 60);
+            $pdf->Ln(70);
+        }
+
+        // Table
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->SetFillColor(240, 240, 240);
+        $pdf->Cell(20, 10, 'ID', 1, 0, 'C', true);
+        $pdf->Cell(60, 10, 'Nombre', 1, 0, 'C', true);
+        $pdf->Cell(30, 10, 'Precio', 1, 0, 'C', true);
+        $pdf->Cell(50, 10, 'Categoria', 1, 1, 'C', true);
+
+        $pdf->SetFont('Arial', '', 10);
+        $fill = false;
+        foreach ($productos as $producto) {
+            $pdf->SetFillColor(255, 255, 255);
+            if ($fill) $pdf->SetFillColor(248, 248, 248);
+            $pdf->Cell(20, 8, $producto->getIdProducto(), 1, 0, 'C', $fill);
+            $pdf->Cell(60, 8, $producto->getNombre(), 1, 0, 'L', $fill);
+            $pdf->Cell(30, 8, '$' . number_format($producto->getPrecio(), 2), 1, 0, 'R', $fill);
+            $pdf->Cell(50, 8, $producto->getIdCategoria(), 1, 1, 'C', $fill);
+            $fill = !$fill;
+        }
+
+        // Footer
+        $pdf->SetY(-15);
+        $pdf->SetFont('Arial', 'I', 8);
+        $pdf->Cell(0, 10, 'Generado el ' . date('d/m/Y H:i'), 0, 0, 'C');
+
+        if (file_exists($imagePath)) unlink($imagePath);
+
+        $pdf->Output('D', 'reporte_productos.pdf');
+    }
+
+    // Generar reporte Excel de productos
+    public function generarReporteProductosExcel() {
+        $this->startSession();
+        $this->checkAuthentication();
+
+        require_once 'modelos/ProductoModel.php';
+
+        $productoModel = new ProductoModel();
+        $productos = $productoModel->getAll();
+
+        header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+        header('Content-Disposition: attachment; filename=reporte_productos.xls');
+        header('Cache-Control: max-age=0');
+
+        echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+        echo '<head>';
+        echo '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />';
+        echo '<style>';
+        echo 'table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }';
+        echo 'th, td { border: 1px solid #000; padding: 8px; text-align: left; }';
+        echo 'th { background-color: #4CAF50; color: white; font-weight: bold; }';
+        echo 'tr:nth-child(even) { background-color: #f2f2f2; }';
+        echo 'tr:nth-child(odd) { background-color: #ffffff; }';
+        echo 'h2 { color: #333; text-align: center; }';
+        echo '</style>';
+        echo '</head>';
+        echo '<body>';
+        echo '<h2>Reporte de Productos</h2>';
+        echo '<table>';
+        echo '<thead>';
+        echo '<tr>';
+        echo '<th>ID</th>';
+        echo '<th>Nombre</th>';
+        echo '<th>Precio</th>';
+        echo '<th>Categoria</th>';
+        echo '</tr>';
+        echo '</thead>';
+        echo '<tbody>';
+
+        foreach ($productos as $producto) {
+            echo '<tr>';
+            echo '<td>' . $producto->getIdProducto() . '</td>';
+            echo '<td>' . htmlspecialchars($producto->getNombre()) . '</td>';
+            echo '<td>$' . number_format($producto->getPrecio(), 2) . '</td>';
+            echo '<td>' . $producto->getIdCategoria() . '</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody>';
+        echo '</table>';
+        echo '</body>';
+        echo '</html>';
+        exit;
+    }
+
+    // Generar reporte PDF de categorías
+    public function generarReporteCategorias() {
+        $this->startSession();
+        $this->checkAuthentication();
+
+        require_once 'libs/fpdf186/fpdf.php';
+        require_once 'modelos/CategoriaModel.php';
+        require_once 'modelos/ProductoModel.php';
+
+        $categoriaModel = new CategoriaModel();
+        $productoModel = new ProductoModel();
+        $categorias = $categoriaModel->getAll();
+
+        // Generate chart image for categories (products per category)
+        $labels = [];
+        $data = [];
+        $productosPorCategoria = $productoModel->getProductosPorCategoria();
+        foreach ($productosPorCategoria as $cat) {
+            $labels[] = $cat['categoria'];
+            $data[] = $cat['total_productos'];
+        }
+
+        $chartConfig = json_encode([
+            'type' => 'bar',
+            'data' => [
+                'labels' => $labels,
+                'datasets' => [[
+                    'label' => 'Productos por Categoria',
+                    'data' => $data,
+                    'backgroundColor' => 'rgba(75, 192, 192, 0.8)',
+                    'borderColor' => 'rgba(75, 192, 192, 1)',
+                    'borderWidth' => 1
+                ]]
+            ],
+            'options' => [
+                'scales' => [
+                    'y' => ['beginAtZero' => true]
+                ],
+                'plugins' => [
+                    'legend' => ['display' => false],
+                    'datalabels' => [
+                        'display' => true,
+                        'color' => 'black',
+                        'font' => ['size' => 12, 'weight' => 'bold'],
+                        'anchor' => 'end',
+                        'align' => 'top'
+                    ]
+                ]
+            ]
+        ]);
+
+        $chartUrl = 'https://quickchart.io/chart?c=' . urlencode($chartConfig);
+        $chartImage = file_get_contents($chartUrl);
+        $imagePath = sys_get_temp_dir() . '/chart_categorias.png';
+        file_put_contents($imagePath, $chartImage);
+
+        $pdf = new FPDF();
+        $pdf->AddPage();
+
+        // Header
+        $pdf->SetFillColor(102, 126, 234);
+        $pdf->Rect(0, 0, 210, 30, 'F');
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 20);
+        $pdf->Cell(0, 15, 'Sistema de Gestion', 0, 1, 'C');
+        $pdf->SetFont('Arial', '', 12);
+        $pdf->Cell(0, 5, 'Reporte de Categorias - ' . date('d/m/Y'), 0, 1, 'C');
+        $pdf->Ln(10);
+
+        // Chart
+        if (file_exists($imagePath)) {
+            $pdf->Image($imagePath, 60, 40, 90, 60);
+            $pdf->Ln(70);
+        }
+
+        // Table
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->SetFillColor(240, 240, 240);
+        $pdf->Cell(20, 10, 'ID', 1, 0, 'C', true);
+        $pdf->Cell(80, 10, 'Nombre', 1, 0, 'C', true);
+        $pdf->Cell(80, 10, 'Descripcion', 1, 1, 'C', true);
+
+        $pdf->SetFont('Arial', '', 10);
+        $fill = false;
+        foreach ($categorias as $categoria) {
+            $pdf->SetFillColor(255, 255, 255);
+            if ($fill) $pdf->SetFillColor(248, 248, 248);
+            $pdf->Cell(20, 8, $categoria->getIdCategoria(), 1, 0, 'C', $fill);
+            $pdf->Cell(80, 8, $categoria->getNombre(), 1, 0, 'L', $fill);
+            $pdf->Cell(80, 8, $categoria->getDescripcion(), 1, 1, 'L', $fill);
+            $fill = !$fill;
+        }
+
+        // Footer
+        $pdf->SetY(-15);
+        $pdf->SetFont('Arial', 'I', 8);
+        $pdf->Cell(0, 10, 'Generado el ' . date('d/m/Y H:i'), 0, 0, 'C');
+
+        if (file_exists($imagePath)) unlink($imagePath);
+
+        $pdf->Output('D', 'reporte_categorias.pdf');
+    }
+
+    // Generar reporte Excel de categorías
+    public function generarReporteCategoriasExcel() {
+        $this->startSession();
+        $this->checkAuthentication();
+
+        require_once 'modelos/CategoriaModel.php';
+
+        $categoriaModel = new CategoriaModel();
+        $categorias = $categoriaModel->getAll();
+
+        header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+        header('Content-Disposition: attachment; filename=reporte_categorias.xls');
+        header('Cache-Control: max-age=0');
+
+        echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+        echo '<head>';
+        echo '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />';
+        echo '<style>';
+        echo 'table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }';
+        echo 'th, td { border: 1px solid #000; padding: 8px; text-align: left; }';
+        echo 'th { background-color: #4CAF50; color: white; font-weight: bold; }';
+        echo 'tr:nth-child(even) { background-color: #f2f2f2; }';
+        echo 'tr:nth-child(odd) { background-color: #ffffff; }';
+        echo 'h2 { color: #333; text-align: center; }';
+        echo '</style>';
+        echo '</head>';
+        echo '<body>';
+        echo '<h2>Reporte de Categorías</h2>';
+        echo '<table>';
+        echo '<thead>';
+        echo '<tr>';
+        echo '<th>ID</th>';
+        echo '<th>Nombre</th>';
+        echo '<th>Descripción</th>';
+        echo '</tr>';
+        echo '</thead>';
+        echo '<tbody>';
+
+        foreach ($categorias as $categoria) {
+            echo '<tr>';
+            echo '<td>' . $categoria->getIdCategoria() . '</td>';
+            echo '<td>' . htmlspecialchars($categoria->getNombre()) . '</td>';
+            echo '<td>' . htmlspecialchars($categoria->getDescripcion()) . '</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody>';
+        echo '</table>';
+        echo '</body>';
+        echo '</html>';
+        exit;
     }
 
     // Iniciar sesión si no existe
@@ -177,33 +670,45 @@ class UsuarioController {
         include 'vistas/Usuarios/login.php';
     }
 
-    // Procesar autenticación
     public function authenticate() {
-        $this->startSession();
-        
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $email = $_POST['email'] ?? '';
-            $password = $_POST['password'] ?? '';
+            $this->startSession();
             
-            $result = $this->usuarioModel->authenticate($email, $password);
-            
-            if ($result) {
-                // Login exitoso
-                $_SESSION['user_id'] = $result['usuario']->getIdUsuario();
-                $_SESSION['user_name'] = $result['usuario']->getNombre();
-                $_SESSION['user_email'] = $result['usuario']->getEmail();
-                $_SESSION['user_role'] = $result['rol'];
-                $_SESSION['user_role_id'] = $result['usuario']->getIdRol();
-                
-                header('Location: ?controller=usuario&action=dashboard');
-                exit;
-            } else {
-                // Login fallido
-                $error = "Email o contraseña incorrectos";
-                include 'vistas/Usuarios/login.php';
+            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+                $email = $_POST['email'] ?? '';
+                $password = $_POST['password'] ?? '';
+
+                // Verificar el usuario y la contraseña en la base de datos
+                $result = $this->usuarioModel->authenticate($email, $password);
+
+                if ($result) {
+                    // Si la autenticación es exitosa, guardamos los datos del usuario en la sesión
+                    $_SESSION['user_id'] = $result['usuario']->getIdUsuario();
+                    $_SESSION['user_name'] = $result['usuario']->getNombre();
+                    $_SESSION['user_email'] = $result['usuario']->getEmail();
+                    $_SESSION['user_role_id'] = $result['usuario']->getIdRol();
+
+                    // Redirigir según el rol del usuario
+                    if ($_SESSION['user_role_id'] == 1) {
+                        // Si el rol es Administrador
+                        header('Location: ?controller=usuario&action=dashboard');  // Redirige al panel de administrador
+                        exit();
+                    } elseif ($_SESSION['user_role_id'] == 2) {
+                        // Si el rol es Cliente
+                        header('Location: ?controller=cliente&action=index_cliente');  // Redirige al panel del cliente
+                        exit();
+                    } else {
+                        // Si el rol no es válido, redirigir al login o mostrar error
+                        header('Location: ?controller=usuario&action=login');
+                        exit();
+                    }
+                } else {
+                    // Si las credenciales son incorrectas
+                    $error = "Email o contraseña incorrectos";
+                    include 'vistas/Usuarios/login.php';
+                }
             }
         }
-    }
+
 
     // Dashboard del usuario
     public function dashboard() {
@@ -281,5 +786,9 @@ class UsuarioController {
         
         include 'vistas/Usuarios/profile.php';
     }
+
+
+    
+
 }
 ?>

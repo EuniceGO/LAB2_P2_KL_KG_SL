@@ -88,7 +88,12 @@ public function getCategoriaTop() {
     return !empty($result) ? $result[0] : null;
 }
 
-
+    // Obtener total de categorías
+    public function getTotalCategorias() {
+        $sql = "SELECT COUNT(*) as total FROM Categorias";
+        $results = $this->cn->consulta($sql);
+        return $results[0]['total'];
+    }
 
 }
 ?>

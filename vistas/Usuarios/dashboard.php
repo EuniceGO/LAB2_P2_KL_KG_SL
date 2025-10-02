@@ -138,6 +138,11 @@
                         <a href="?c=producto&a=index" class="btn btn-outline-secondary">
                             <i class="fas fa-box"></i> Ver Productos
                         </a>
+                        
+                        <!-- Nuevo botón para Ver Reportes -->
+                        <a href="?controller=usuario&action=verReportes" class="btn btn-outline-danger">
+                            <i class="fas fa-chart-bar"></i> Ver Reportes
+                        </a>
                     </div>
                 </div>
             </div>
