@@ -1,4 +1,6 @@
 <?php
+define("URL","http://192.168.1.160/P2Lab1-KG-KL");
+
 require_once 'rutas.php';
 
 // Parámetros de navegación - soportar tanto 'c' como 'controller'

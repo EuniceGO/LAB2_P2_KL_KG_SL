@@ -24,9 +24,11 @@ class UsuarioController {
         // Cargar modelos necesarios
         require_once 'modelos/ProductoModel.php';
         require_once 'modelos/CategoriaModel.php';
+        require_once 'modelos/FacturaModel.php';
 
         $productoModel = new ProductoModel();
         $categoriaModel = new CategoriaModel();
+        $facturaModel = new FacturaModel();
 
         // Obtener datos para reportes
         $totalUsuarios = $this->usuarioModel->getTotalUsuarios();
@@ -36,6 +38,24 @@ class UsuarioController {
         $productosPorCategoria = $productoModel->getProductosPorCategoria();
 
         $totalCategorias = $categoriaModel->getTotalCategorias();
+
+        // Obtener resumen de facturas por cliente
+        $facturasClientes = $facturaModel->obtenerFacturasConCliente(100, 0); // Limitar a 100 para reporte
+
+        // Calcular totales por cliente
+        $resumenClientes = [];
+        foreach ($facturasClientes as $factura) {
+            $idCliente = $factura['id_cliente'] ?? 0;
+            if (!isset($resumenClientes[$idCliente])) {
+                $resumenClientes[$idCliente] = [
+                    'cliente_nombre' => $factura['cliente_nombre_completo'] ?? 'Cliente General',
+                    'total_gastos' => 0,
+                    'total_facturas' => 0
+                ];
+            }
+            $resumenClientes[$idCliente]['total_gastos'] += $factura['total'];
+            $resumenClientes[$idCliente]['total_facturas'] += 1;
+        }
 
         include 'vistas/Usuarios/reportes.php';
     }
@@ -1061,5 +1081,139 @@ class UsuarioController {
 
     
 
+    // Generar reporte PDF de facturas por clientes (resumen general)
+    public function generarReporteFacturasClientes() {
+        $this->startSession();
+        $this->checkAuthentication();
+
+        require_once 'libs/fpdf186/fpdf.php';
+        require_once 'modelos/FacturaModel.php';
+
+        $facturaModel = new FacturaModel();
+        $facturasClientes = $facturaModel->obtenerFacturasConCliente(1000, 0); // Obtener hasta 1000 facturas para el reporte
+
+        // Calcular resumen por cliente
+        $resumenClientes = [];
+        foreach ($facturasClientes as $factura) {
+            $idCliente = $factura['id_cliente'] ?? 0;
+            if (!isset($resumenClientes[$idCliente])) {
+                $resumenClientes[$idCliente] = [
+                    'cliente_nombre' => $factura['cliente_nombre_completo'] ?? 'Cliente General',
+                    'total_gastos' => 0,
+                    'total_facturas' => 0
+                ];
+            }
+            $resumenClientes[$idCliente]['total_gastos'] += $factura['total'];
+            $resumenClientes[$idCliente]['total_facturas'] += 1;
+        }
+
+        $pdf = new FPDF();
+        $pdf->AddPage();
+
+        // Header
+        $pdf->SetFillColor(102, 126, 234);
+        $pdf->Rect(0, 0, 210, 30, 'F');
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Arial', 'B', 20);
+        $pdf->Cell(0, 15, 'Sistema de Gestion', 0, 1, 'C');
+        $pdf->SetFont('Arial', '', 12);
+        $pdf->Cell(0, 5, 'Reporte de Facturas por Clientes - ' . date('d/m/Y'), 0, 1, 'C');
+        $pdf->Ln(10);
+
+        // Table header
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->SetFillColor(240, 240, 240);
+        $pdf->Cell(80, 10, 'Cliente', 1, 0, 'C', true);
+        $pdf->Cell(50, 10, 'Total Facturas', 1, 0, 'C', true);
+        $pdf->Cell(50, 10, 'Total Gastos', 1, 1, 'C', true);
+
+        // Table rows
+        $pdf->SetFont('Arial', '', 10);
+        $fill = false;
+        foreach ($resumenClientes as $cliente) {
+            $pdf->SetFillColor(255, 255, 255);
+            if ($fill) $pdf->SetFillColor(248, 248, 248);
+            $pdf->Cell(80, 8, $cliente['cliente_nombre'], 1, 0, 'L', $fill);
+            $pdf->Cell(50, 8, $cliente['total_facturas'], 1, 0, 'C', $fill);
+            $pdf->Cell(50, 8, '$' . number_format($cliente['total_gastos'], 2), 1, 1, 'R', $fill);
+            $fill = !$fill;
+        }
+
+        // Footer
+        $pdf->SetY(-15);
+        $pdf->SetFont('Arial', 'I', 8);
+        $pdf->Cell(0, 10, 'Generado el ' . date('d/m/Y H:i'), 0, 0, 'C');
+
+        $pdf->Output('D', 'reporte_facturas_clientes.pdf');
+    }
+
+    // Generar reporte Excel de facturas por clientes (resumen general)
+    public function generarReporteFacturasClientesExcel() {
+        $this->startSession();
+        $this->checkAuthentication();
+
+        require_once 'modelos/FacturaModel.php';
+
+        $facturaModel = new FacturaModel();
+        $facturasClientes = $facturaModel->obtenerFacturasConCliente(1000, 0); // Obtener hasta 1000 facturas para el reporte
+
+        // Calcular resumen por cliente
+        $resumenClientes = [];
+        foreach ($facturasClientes as $factura) {
+            $idCliente = $factura['id_cliente'] ?? 0;
+            if (!isset($resumenClientes[$idCliente])) {
+                $resumenClientes[$idCliente] = [
+                    'cliente_nombre' => $factura['cliente_nombre_completo'] ?? 'Cliente General',
+                    'total_gastos' => 0,
+                    'total_facturas' => 0
+                ];
+            }
+            $resumenClientes[$idCliente]['total_gastos'] += $factura['total'];
+            $resumenClientes[$idCliente]['total_facturas'] += 1;
+        }
+
+        header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+        header('Content-Disposition: attachment; filename=reporte_facturas_clientes.xls');
+        header('Cache-Control: max-age=0');
+
+        echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+        echo '<head>';
+        echo '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />';
+        echo '<style>';
+        echo 'table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }';
+        echo 'th, td { border: 1px solid #000; padding: 8px; text-align: left; }';
+        echo 'th { background-color: #4CAF50; color: white; font-weight: bold; }';
+        echo 'tr:nth-child(even) { background-color: #f2f2f2; }';
+        echo 'tr:nth-child(odd) { background-color: #ffffff; }';
+        echo 'h2 { color: #333; text-align: center; }';
+        echo '</style>';
+        echo '</head>';
+        echo '<body>';
+        echo '<h2>Reporte de Facturas por Clientes</h2>';
+        echo '<table>';
+        echo '<thead>';
+        echo '<tr>';
+        echo '<th>Cliente</th>';
+        echo '<th>Total Facturas</th>';
+        echo '<th>Total Gastos</th>';
+        echo '</tr>';
+        echo '</thead>';
+        echo '<tbody>';
+
+        foreach ($resumenClientes as $cliente) {
+            echo '<tr>';
+            echo '<td>' . htmlspecialchars($cliente['cliente_nombre']) . '</td>';
+            echo '<td>' . $cliente['total_facturas'] . '</td>';
+            echo '<td>$' . number_format($cliente['total_gastos'], 2) . '</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody>';
+        echo '</table>';
+        echo '</body>';
+        echo '</html>';
+        exit;
+    }
 }
 ?>
