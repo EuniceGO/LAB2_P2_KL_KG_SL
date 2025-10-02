@@ -61,17 +61,79 @@ class QRCodeGenerator {
     }
     
     /**
-     * Genera datos del producto para el QR (versión simplificada)
+     * Genera datos del producto para el QR (URL para móvil)
      * @param object $producto - Objeto producto
-     * @return string - Datos formateados para el QR
+     * @return string - URL para acceder al producto desde móvil
      */
     public static function generateProductData($producto) {
-        // Usar datos simples en lugar de JSON para evitar problemas
-        $data = "ID:" . $producto->getIdProducto() . 
-                "|Nombre:" . $producto->getNombre() . 
-                "|Precio:" . $producto->getPrecio() . 
-                "|Categoria:" . $producto->getIdCategoria();
-        return $data;
+        // Generar URL accesible desde móvil en la red WiFi
+        $baseUrl = self::getBaseUrl();
+        $productUrl = $baseUrl . "?c=producto&a=viewMobile&id=" . $producto->getIdProducto();
+        return $productUrl;
+    }
+    
+    /**
+     * Obtiene la URL base de la aplicación (configurable para WiFi)
+     * @return string - URL base
+     */
+    private static function getBaseUrl() {
+        // Configuración manual de IP para WiFi
+        // IP configurada manualmente para acceso desde celular en WiFi
+        $host = '192.168.1.23';
+        
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+        
+        // Comentado: detección automática que causaba problemas con VirtualBox
+        /*
+        // Si estás en desarrollo local, usar la IP de tu máquina
+        // Puedes cambiar esta IP por la de tu máquina en la red WiFi
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        
+        // Si el host es localhost, intentar obtener la IP local
+        if ($host === 'localhost' || $host === '127.0.0.1') {
+            $localIP = self::getLocalIP();
+            if ($localIP) {
+                $host = $localIP;
+            }
+        }
+        */
+        
+        $scriptName = dirname($_SERVER['SCRIPT_NAME']);
+        if ($scriptName === '/' || $scriptName === '\\') {
+            $scriptName = '';
+        }
+        
+        return $protocol . '://' . $host . $scriptName . '/index.php';
+    }
+    
+    /**
+     * Intenta obtener la IP local de la máquina
+     * @return string|null - IP local o null si no se puede obtener
+     */
+    private static function getLocalIP() {
+        // Método para Windows (funciona en XAMPP)
+        if (PHP_OS_FAMILY === 'Windows') {
+            $output = shell_exec('ipconfig | findstr /i "IPv4"');
+            if ($output) {
+                preg_match('/\d+\.\d+\.\d+\.\d+/', $output, $matches);
+                if (!empty($matches)) {
+                    $ip = $matches[0];
+                    // Evitar IPs de loopback o virtuales
+                    if (!in_array($ip, ['127.0.0.1', '169.254.'])) {
+                        return $ip;
+                    }
+                }
+            }
+        }
+        
+        // Método alternativo usando gethostbyname
+        $hostname = gethostname();
+        $ip = gethostbyname($hostname);
+        if ($ip !== $hostname && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            return $ip;
+        }
+        
+        return null;
     }
     
     /**

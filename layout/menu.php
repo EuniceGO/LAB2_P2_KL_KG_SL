@@ -50,6 +50,14 @@ if (session_status() == PHP_SESSION_NONE) {
                                 <i class="fas fa-images"></i> Imágenes
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link position-relative" href="?c=carrito&a=index">
+                                <i class="fas fa-shopping-cart"></i> Carrito
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart-counter">
+                                    0
+                                </span>
+                            </a>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-users-cog"></i> Administración
@@ -103,3 +111,35 @@ if (session_status() == PHP_SESSION_NONE) {
     
     <!-- Main Content -->
     <div class="container mt-4">
+
+    <!-- Script para actualizar contador del carrito -->
+    <script>
+        // Función para actualizar el contador del carrito
+        function actualizarContadorCarrito() {
+            fetch('?c=carrito&a=contador')
+                .then(response => response.json())
+                .then(data => {
+                    const contador = document.getElementById('cart-counter');
+                    if (contador) {
+                        contador.textContent = data.cantidad;
+                        // Ocultar el badge si no hay productos
+                        if (data.cantidad == 0) {
+                            contador.style.display = 'none';
+                        } else {
+                            contador.style.display = 'inline';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.log('Error al actualizar contador del carrito:', error);
+                });
+        }
+
+        // Actualizar contador al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            actualizarContadorCarrito();
+            
+            // Actualizar cada 30 segundos
+            setInterval(actualizarContadorCarrito, 30000);
+        });
+    </script>

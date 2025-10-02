@@ -110,5 +110,19 @@ class ProductoController {
         $producto = $this->productoModel->getById($id);
         include 'vistas/Productos/view_qr.php';
     }
+    
+    // Método para vista móvil (acceso desde código QR)
+    public function viewMobile($id) {
+        $producto = $this->productoModel->getById($id);
+        if ($producto) {
+            // Obtener información adicional
+            $categoriaModel = new CategoriaModel();
+            $categoria = $categoriaModel->getById($producto->getIdCategoria());
+            include 'vistas/Productos/mobile_view.php';
+        } else {
+            // Producto no encontrado
+            include 'vistas/Productos/mobile_not_found.php';
+        }
+    }
 }
 ?>
