@@ -58,13 +58,21 @@ if (session_status() == PHP_SESSION_NONE) {
                                 </span>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="?c=carrito&a=historial">
+                                <i class="fas fa-receipt"></i> Facturas
+                            </a>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-users-cog"></i> Administración
                             </a>
                             <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="vistas/Clientes/index.php">
+                                    <i class="fas fa-users"></i> Clientes
+                                </a></li>
                                 <li><a class="dropdown-item" href="?controller=usuario&action=index">
-                                    <i class="fas fa-users"></i> Usuarios
+                                    <i class="fas fa-user-cog"></i> Usuarios
                                 </a></li>
                                 <li><a class="dropdown-item" href="?controller=role&action=index">
                                     <i class="fas fa-user-tag"></i> Roles

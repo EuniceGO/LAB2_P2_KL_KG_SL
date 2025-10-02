@@ -1,13 +1,14 @@
 <?php
 /**
- * Script de prueba completo para el sistema de carrito y facturación
- * Permite probar toda la funcionalidad desde el navegador
+ * Script de Prueba Completo - Sistema de Carrito y Facturas
+ * Simula una compra completa para verificar que todo funciona
  */
 
-require_once 'config/cn.php';
-require_once 'modelos/ProductoModel.php';
+session_start();
 require_once 'clases/Carrito.php';
 require_once 'clases/Factura.php';
+require_once 'modelos/ProductoModel.php';
+require_once 'modelos/ClienteModel.php';
 
 echo "<!DOCTYPE html>
 <html lang='es'>
@@ -209,6 +210,55 @@ try {
             </ul>
         </div>
     </div></div>";
+    
+    // Test 7: Sistema de Clientes
+    echo "<div class='test-section'>
+        <h4><i class='fas fa-users'></i> Test 7: Sistema de Gestión de Clientes</h4>";
+    
+    try {
+        $clienteModel = new ClienteModel();
+        
+        // Prueba 1: Validar datos
+        $datosCliente = [
+            'nombre' => 'Cliente de Prueba Sistema',
+            'email' => 'test.sistema@correo.com',
+            'telefono' => '555-0199',
+            'direccion' => 'Calle de Prueba 456'
+        ];
+        
+        $errores = $clienteModel->validarDatos($datosCliente);
+        if (empty($errores)) {
+            echo "<div class='test-success test-result'>✅ Validación de datos de cliente correcta.</div>";
+        } else {
+            echo "<div class='test-error test-result'>❌ Error en validación: " . implode(', ', $errores) . "</div>";
+        }
+        
+        // Prueba 2: Insertar cliente
+        $idCliente = $clienteModel->insertarOActualizar($datosCliente);
+        if ($idCliente) {
+            echo "<div class='test-success test-result'>✅ Cliente guardado con ID: $idCliente</div>";
+            
+            // Prueba 3: Buscar cliente
+            $clienteBuscado = $clienteModel->buscarPorEmail($datosCliente['email']);
+            if ($clienteBuscado) {
+                echo "<div class='test-success test-result'>✅ Cliente encontrado por email.</div>";
+            } else {
+                echo "<div class='test-error test-result'>❌ No se pudo encontrar cliente por email.</div>";
+            }
+            
+            // Prueba 4: Contar clientes
+            $totalClientes = $clienteModel->contarTotal();
+            echo "<div class='test-info test-result'>📊 Total de clientes en sistema: $totalClientes</div>";
+            
+        } else {
+            echo "<div class='test-error test-result'>❌ Error al guardar cliente.</div>";
+        }
+        
+    } catch (Exception $e) {
+        echo "<div class='test-error test-result'>❌ Error en prueba de clientes: " . $e->getMessage() . "</div>";
+    }
+    
+    echo "</div>";
     
 } catch (Exception $e) {
     echo "<div class='test-error test-result'>❌ Error general: " . htmlspecialchars($e->getMessage()) . "</div>";

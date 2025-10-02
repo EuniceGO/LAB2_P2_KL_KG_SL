@@ -148,14 +148,22 @@ class CarritoController {
             'direccion' => $_POST['direccion'] ?? ''
         ];
 
+        // Obtener método de pago
+        $metodoPago = $_POST['metodo_pago'] ?? 'efectivo';
+
         try {
             // Crear factura
             $factura = new Factura();
             $factura->setClienteInfo($clienteInfo);
+            $factura->setMetodoPago($metodoPago);
             $factura->agregarProductosDesdeCarrito(Carrito::obtenerDatosParaFactura());
             
-            // Guardar factura (opcional - implementar según necesidades)
-            $factura->guardarEnBaseDatos();
+            // Guardar factura en la base de datos
+            $guardadoExitoso = $factura->guardarEnBaseDatos();
+            
+            if (!$guardadoExitoso) {
+                throw new Exception("No se pudo guardar la factura en la base de datos");
+            }
             
             // Generar HTML de la factura
             $facturaHTML = $factura->generarFacturaHTML();
@@ -199,6 +207,87 @@ class CarritoController {
         $resumen = Carrito::obtenerResumen();
         echo json_encode($resumen);
         exit;
+    }
+
+    /**
+     * Muestra el historial de facturas
+     */
+    public function historial() {
+        include 'vistas/Carrito/historial.php';
+    }
+
+    /**
+     * Muestra una factura específica
+     */
+    public function verFactura($idFactura = null) {
+        $idFactura = $idFactura ?? $_GET['id'] ?? null;
+        
+        if (!$idFactura) {
+            header('Location: ?c=carrito&a=historial&error=id_invalido');
+            exit;
+        }
+
+        require_once 'modelos/FacturaModel.php';
+        $facturaModel = new FacturaModel();
+        
+        $datosFactura = $facturaModel->obtenerFacturaPorId($idFactura);
+        $detallesFactura = $facturaModel->obtenerDetallesFactura($idFactura);
+        
+        if (!$datosFactura) {
+            header('Location: ?c=carrito&a=historial&error=factura_no_encontrada');
+            exit;
+        }
+        
+        include 'vistas/Carrito/ver_factura.php';
+    }
+
+    /**
+     * Imprime una factura específica
+     */
+    public function imprimirFactura($idFactura = null) {
+        $idFactura = $idFactura ?? $_GET['id'] ?? null;
+        
+        if (!$idFactura) {
+            echo "ID de factura no válido";
+            exit;
+        }
+
+        require_once 'modelos/FacturaModel.php';
+        $facturaModel = new FacturaModel();
+        
+        $datosFactura = $facturaModel->obtenerFacturaPorId($idFactura);
+        $detallesFactura = $facturaModel->obtenerDetallesFactura($idFactura);
+        
+        if (!$datosFactura) {
+            echo "Factura no encontrada";
+            exit;
+        }
+
+        // Recrear objeto factura para generar HTML
+        $factura = new Factura();
+        $factura->setClienteInfo([
+            'nombre' => $datosFactura['cliente_nombre'],
+            'email' => $datosFactura['cliente_email'],
+            'telefono' => $datosFactura['cliente_telefono'],
+            'direccion' => $datosFactura['cliente_direccion']
+        ]);
+        
+        // Convertir detalles a formato esperado
+        $productosParaFactura = [];
+        foreach ($detallesFactura as $detalle) {
+            $productosParaFactura[] = [
+                'id_producto' => $detalle['id_producto'],
+                'nombre' => $detalle['nombre_producto'],
+                'precio_unitario' => $detalle['precio_unitario'],
+                'cantidad' => $detalle['cantidad'],
+                'subtotal' => $detalle['subtotal']
+            ];
+        }
+        
+        $factura->agregarProductosDesdeCarrito($productosParaFactura);
+        
+        // Generar y mostrar HTML
+        echo $factura->generarFacturaHTML();
     }
 
     /**

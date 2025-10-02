@@ -2,6 +2,9 @@
 /**
  * Clase Factura - Maneja la generación de facturas y tickets de compra
  */
+require_once 'modelos/FacturaModel.php';
+require_once 'modelos/ClienteModel.php';
+
 class Factura {
     private $numeroFactura;
     private $fecha;
@@ -10,6 +13,11 @@ class Factura {
     private $subtotal;
     private $impuesto;
     private $total;
+    private $metodoPago;
+    private $facturaModel;
+    private $clienteModel;
+    private $idFactura;
+    private $idCliente;
     
     public function __construct() {
         $this->numeroFactura = $this->generarNumeroFactura();
@@ -18,6 +26,11 @@ class Factura {
         $this->subtotal = 0;
         $this->impuesto = 0;
         $this->total = 0;
+        $this->metodoPago = 'efectivo';
+        $this->facturaModel = new FacturaModel();
+        $this->clienteModel = new ClienteModel();
+        $this->idFactura = null;
+        $this->idCliente = null;
     }
     
     /**
@@ -29,6 +42,14 @@ class Factura {
         $fecha = date('Ymd');
         $aleatorio = str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
         return $prefijo . '-' . $fecha . '-' . $aleatorio;
+    }
+    
+    /**
+     * Establece el método de pago
+     * @param string $metodo - Método de pago
+     */
+    public function setMetodoPago($metodo) {
+        $this->metodoPago = $metodo;
     }
     
     /**
@@ -306,13 +327,89 @@ class Factura {
     }
     
     /**
-     * Guarda la factura en la base de datos (opcional)
+     * Guarda la factura en la base de datos
      * @return bool - True si se guardó exitosamente
      */
     public function guardarEnBaseDatos() {
-        // Implementar según necesidades de persistencia
-        // Por ahora solo retornamos true
-        return true;
+        try {
+            // Validar y limpiar datos del cliente
+            $datosCliente = $this->clienteModel->limpiarDatos($this->clienteInfo);
+            $erroresValidacion = $this->clienteModel->validarDatos($datosCliente);
+            
+            if (!empty($erroresValidacion)) {
+                error_log("Error de validación de cliente: " . json_encode($erroresValidacion));
+                // Usar datos por defecto si hay errores de validación
+                $datosCliente = [
+                    'nombre' => $this->clienteInfo['nombre'] ?? 'Cliente General',
+                    'email' => $this->clienteInfo['email'] ?? 'cliente@general.com',
+                    'telefono' => $this->clienteInfo['telefono'] ?? '',
+                    'direccion' => $this->clienteInfo['direccion'] ?? ''
+                ];
+            }
+            
+            // Insertar o actualizar cliente y obtener ID
+            $this->idCliente = $this->clienteModel->insertarOActualizar($datosCliente);
+            
+            if (!$this->idCliente) {
+                throw new Exception("No se pudo guardar la información del cliente");
+            }
+            
+            // Preparar datos de la factura
+            $datosFactura = [
+                'numero_factura' => $this->numeroFactura,
+                'fecha_factura' => $this->fecha,
+                'id_cliente' => $this->idCliente,
+                'cliente_nombre' => $datosCliente['nombre'],
+                'cliente_email' => $datosCliente['email'],
+                'cliente_telefono' => $datosCliente['telefono'],
+                'cliente_direccion' => $datosCliente['direccion'],
+                'subtotal' => $this->subtotal,
+                'impuesto' => $this->impuesto,
+                'total' => $this->total,
+                'metodo_pago' => $this->metodoPago,
+                'estado' => 'pagada',
+                'notas' => 'Factura generada desde sistema web - Cliente registrado automáticamente'
+            ];
+            
+            // Insertar factura
+            $this->idFactura = $this->facturaModel->insertarFactura($datosFactura);
+            
+            if ($this->idFactura) {
+                // Insertar detalles de la factura
+                $productosParaBD = [];
+                foreach ($this->productos as $producto) {
+                    $productosParaBD[] = [
+                        'id_producto' => $producto['id_producto'],
+                        'nombre' => $producto['nombre'],
+                        'precio_unitario' => $producto['precio_unitario'],
+                        'cantidad' => $producto['cantidad'],
+                        'subtotal' => $producto['subtotal']
+                    ];
+                }
+                
+                if ($this->facturaModel->insertarDetallesFactura($this->idFactura, $productosParaBD)) {
+                    return true;
+                } else {
+                    error_log("Error al guardar detalles de factura: " . $this->numeroFactura);
+                    return false;
+                }
+            } else {
+                error_log("Error al guardar factura en BD: " . $this->numeroFactura);
+                return false;
+            }
+            
+        } catch (Exception $e) {
+            error_log("Error en guardarEnBaseDatos: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Obtiene el ID de la factura en la base de datos
+     * @return int|null - ID de la factura
+     */
+    public function getIdFactura() {
+        return $this->idFactura;
     }
     
     /**
@@ -345,6 +442,30 @@ class Factura {
             'impuesto' => $this->impuesto,
             'total' => $this->total
         ];
+    }
+    
+    /**
+     * Obtiene el ID del cliente
+     * @return int|null - ID del cliente
+     */
+    public function getIdCliente() {
+        return $this->idCliente;
+    }
+    
+    /**
+     * Obtiene la información completa del cliente
+     * @return array|null - Datos del cliente
+     */
+    public function getClienteInfo() {
+        return $this->clienteInfo;
+    }
+    
+    /**
+     * Verifica si el cliente fue guardado exitosamente
+     * @return bool - True si el cliente existe en BD
+     */
+    public function clienteGuardado() {
+        return $this->idCliente !== null;
     }
 }
 ?>

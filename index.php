@@ -22,10 +22,10 @@ if (file_exists($archivo)) {
             $controller->{$a}(); // métodos sin parámetros
         }
     } else {
-        include 'vistas/404.php';
+        include 'layout/404.php';
     }
 } else {
-    include 'vistas/404.php';
+    include 'layout/404.php';
 }
 
 ?>
