@@ -12,6 +12,24 @@
                         <h5><?php echo htmlspecialchars($producto->getNombre()); ?></h5>
                         <p class="text-muted">Precio: $<?php echo number_format($producto->getPrecio(), 2); ?></p>
                         
+                        <!-- Mostrar imagen del producto si existe -->
+                        <?php if ($producto->getImagenUrl()): ?>
+                            <div class="mb-4">
+                                <h6><i class="fas fa-image"></i> Imagen del Producto</h6>
+                                <div class="d-flex justify-content-center">
+                                    <img src="<?php echo htmlspecialchars($producto->getImagenUrl()); ?>" 
+                                         alt="<?php echo htmlspecialchars($producto->getNombre()); ?>" 
+                                         class="img-fluid rounded shadow" 
+                                         style="max-width: 300px; max-height: 250px; object-fit: cover;"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                    <div class="alert alert-warning" style="display: none;">
+                                        <i class="fas fa-exclamation-triangle"></i> 
+                                        No se pudo cargar la imagen del producto
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        
                         <?php if ($producto->getCodigoQr()): ?>
                             <?php 
                             $qrPath = $producto->getCodigoQr();
@@ -68,7 +86,8 @@
                                         'id' => $producto->getIdProducto(),
                                         'nombre' => $producto->getNombre(),
                                         'precio' => $producto->getPrecio(),
-                                        'categoria' => $producto->getIdCategoria()
+                                        'categoria' => $producto->getIdCategoria(),
+                                        'imagen_url' => $producto->getImagenUrl()
                                     ], JSON_PRETTY_PRINT);
                                     ?>
                                 </small>

@@ -42,7 +42,9 @@ class ProductoController {
                 null,
                 $_POST['nombre'],
                 $_POST['precio'],
-                $_POST['id_categoria']
+                $_POST['id_categoria'],
+                null, // codigo_qr se generará automáticamente
+                $_POST['imagen_url'] ?? null
             );
             
             $resultado = $this->productoModel->insert($producto);
@@ -77,7 +79,8 @@ class ProductoController {
                 $_POST['nombre'],
                 $_POST['precio'],
                 $_POST['id_categoria'],
-                $productoActual ? $productoActual->getCodigoQr() : null
+                $productoActual ? $productoActual->getCodigoQr() : null,
+                $_POST['imagen_url'] ?? null
             );
             $this->productoModel->update($producto);
             header('Location: ?c=producto&a=index&updated=1');
@@ -114,15 +117,7 @@ class ProductoController {
     // Método para vista móvil (acceso desde código QR)
     public function viewMobile($id) {
         $producto = $this->productoModel->getById($id);
-        if ($producto) {
-            // Obtener información adicional
-            $categoriaModel = new CategoriaModel();
-            $categoria = $categoriaModel->getById($producto->getIdCategoria());
-            include 'vistas/Productos/mobile_view.php';
-        } else {
-            // Producto no encontrado
-            include 'vistas/Productos/mobile_not_found.php';
-        }
+        include 'vistas/Productos/view_mobile.php';
     }
 }
 ?>

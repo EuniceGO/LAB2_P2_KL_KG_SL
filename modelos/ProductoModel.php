@@ -16,45 +16,50 @@ class ProductoModel {
         $results = $this->cn->consulta($sql);
         $productos = [];
         foreach ($results as $row) {
-            $productos[] = new Producto(
+            $producto = new Producto(
                 $row['id_producto'], 
                 $row['nombre'], 
                 $row['precio'], 
                 $row['id_categoria'],
                 $row['codigo_qr'] ?? null
             );
+            $producto->setImagenUrl($row['imagen_url'] ?? null);
+            $productos[] = $producto;
         }
         return $productos;
     }
     
     // Obtener todos los productos junto con el nombre de la categoría
     public function getAll() {
-        $sql = "SELECT p.id_producto, p.nombre AS nombre_producto, p.precio, p.id_categoria, p.codigo_qr, c.nombre AS nombre_categoria
+        $sql = "SELECT p.id_producto, p.nombre AS nombre_producto, p.precio, p.id_categoria, p.codigo_qr, p.imagen_url, c.nombre AS nombre_categoria
                 FROM Productos p
                 LEFT JOIN Categorias c ON p.id_categoria = c.id_categoria
                 ORDER BY p.id_producto DESC";
         $results = $this->cn->consulta($sql);
         $productos = [];
         foreach ($results as $row) {
-            $productos[] = new Producto(
+            $producto = new Producto(
                 $row['id_producto'], 
                 $row['nombre_producto'], 
                 $row['precio'], 
                 $row['id_categoria'],
-                $row['codigo_qr']
+                $row['codigo_qr'],
+                $row['imagen_url']
             );
+            $productos[] = $producto;
         }
         return $productos;
     }
 
     // Insertar nuevo producto y generar QR
     public function insert($productoObj) {
-        // Primero insertar el producto sin QR
-        $sql = "INSERT INTO Productos (nombre, precio, id_categoria) VALUES (?, ?, ?)";
+        // Primero insertar el producto con imagen_url
+        $sql = "INSERT INTO Productos (nombre, precio, id_categoria, imagen_url) VALUES (?, ?, ?, ?)";
         $result = $this->cn->ejecutar($sql, [
             $productoObj->getNombre(), 
             $productoObj->getPrecio(), 
-            $productoObj->getIdCategoria()
+            $productoObj->getIdCategoria(),
+            $productoObj->getImagenUrl()
         ]);
         
         if ($result) {
@@ -66,7 +71,9 @@ class ProductoModel {
                 $lastId,
                 $productoObj->getNombre(),
                 $productoObj->getPrecio(),
-                $productoObj->getIdCategoria()
+                $productoObj->getIdCategoria(),
+                null,
+                $productoObj->getImagenUrl()
             );
             
             // Generar código QR
@@ -95,7 +102,8 @@ class ProductoModel {
                 $row['nombre'], 
                 $row['precio'], 
                 $row['id_categoria'],
-                $row['codigo_qr'] ?? null
+                $row['codigo_qr'] ?? null,
+                $row['imagen_url'] ?? null
             );
         }
         return null;
@@ -103,12 +111,13 @@ class ProductoModel {
 
     // Actualizar producto
     public function update($productoObj) {
-        $sql = "UPDATE Productos SET nombre = ?, precio = ?, id_categoria = ?, codigo_qr = ? WHERE id_producto = ?";
+        $sql = "UPDATE Productos SET nombre = ?, precio = ?, id_categoria = ?, codigo_qr = ?, imagen_url = ? WHERE id_producto = ?";
         return $this->cn->ejecutar($sql, [
             $productoObj->getNombre(),
             $productoObj->getPrecio(),
             $productoObj->getIdCategoria(),
             $productoObj->getCodigoQr(),
+            $productoObj->getImagenUrl(),
             $productoObj->getIdProducto()
         ]);
     }
@@ -162,7 +171,7 @@ class ProductoModel {
 
     // Buscar productos
     public function search($termino) {
-        $sql = "SELECT p.id_producto, p.nombre AS nombre_producto, p.precio, p.id_categoria, p.codigo_qr, c.nombre AS nombre_categoria
+        $sql = "SELECT p.id_producto, p.nombre AS nombre_producto, p.precio, p.id_categoria, p.codigo_qr, p.imagen_url, c.nombre AS nombre_categoria
                 FROM Productos p
                 LEFT JOIN Categorias c ON p.id_categoria = c.id_categoria
                 WHERE p.nombre LIKE ? OR c.nombre LIKE ?
@@ -176,7 +185,8 @@ class ProductoModel {
                 $row['nombre_producto'],
                 $row['precio'],
                 $row['id_categoria'],
-                $row['codigo_qr']
+                $row['codigo_qr'],
+                $row['imagen_url']
             );
         }
         return $productos;

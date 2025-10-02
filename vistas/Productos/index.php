@@ -71,6 +71,7 @@
                     <thead class="table-dark">
                         <tr>
                             <th>ID</th>
+                            <th>Imagen</th>
                             <th>Nombre</th>
                             <th>Precio</th>
                             <th>Categoría</th>
@@ -81,7 +82,7 @@
                     <tbody>
                         <?php if (empty($productos)): ?>
                             <tr>
-                                <td colspan="6" class="text-center py-4">
+                                <td colspan="7" class="text-center py-4">
                                     <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">No hay productos registrados</p>
                                     <a href="?c=producto&a=create" class="btn btn-primary">
@@ -93,6 +94,22 @@
                             <?php foreach ($productos as $prod): ?>
                                 <tr>
                                     <td class="fw-bold"><?= $prod->getIdProducto() ?></td>
+                                    <td class="text-center">
+                                        <?php if ($prod->getImagenUrl()): ?>
+                                            <img src="<?= htmlspecialchars($prod->getImagenUrl()) ?>" 
+                                                 alt="<?= htmlspecialchars($prod->getNombre()) ?>" 
+                                                 style="width: 50px; height: 40px; object-fit: cover; border-radius: 5px;" 
+                                                 title="<?= htmlspecialchars($prod->getNombre()) ?>"
+                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                                            <span class="text-muted" style="display: none;" title="Error al cargar imagen">
+                                                <i class="fas fa-image"></i>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-muted" title="Sin imagen">
+                                                <i class="fas fa-image"></i>
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><?= htmlspecialchars($prod->getNombre()) ?></td>
                                     <td class="text-success fw-bold">$<?= number_format($prod->getPrecio(), 2) ?></td>
                                     <td><?= htmlspecialchars($prod->getIdCategoria()) ?></td>
@@ -107,6 +124,10 @@
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
+                                            <a href="?c=carrito&a=agregar&id=<?= $prod->getIdProducto() ?>" 
+                                               class="btn btn-sm btn-success" title="Agregar al carrito">
+                                                <i class="fas fa-cart-plus"></i>
+                                            </a>
                                             <a href="?c=producto&a=edit&id=<?= $prod->getIdProducto() ?>" 
                                                class="btn btn-sm btn-outline-primary" title="Editar">
                                                 <i class="fas fa-edit"></i>

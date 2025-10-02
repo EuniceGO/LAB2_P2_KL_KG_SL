@@ -54,6 +54,27 @@
                         </select>
                     </div>
 
+                    <div class="mb-3">
+                        <label for="imagen_url" class="form-label">
+                            <i class="fas fa-image"></i> URL de la Imagen
+                        </label>
+                        <input type="url" 
+                               class="form-control" 
+                               id="imagen_url" 
+                               name="imagen_url" 
+                               value="<?= htmlspecialchars($producto->getImagenUrl() ?? '') ?>"
+                               placeholder="https://ejemplo.com/imagen.jpg"
+                               pattern="https?://.+"
+                               title="Ingrese una URL válida que comience con http:// o https://">
+                        <div class="form-text">
+                            <small>Opcional: URL de una imagen para mostrar en el código QR</small>
+                        </div>
+                        <div class="mt-2" id="preview-container" <?= $producto->getImagenUrl() ? '' : 'style="display: none;"' ?>>
+                            <label class="form-label">Vista previa:</label><br>
+                            <img id="imagen-preview" src="<?= htmlspecialchars($producto->getImagenUrl() ?? '') ?>" alt="Vista previa" class="img-thumbnail" style="max-width: 200px; max-height: 150px;">
+                        </div>
+                    </div>
+
                     <div class="d-flex justify-content-between">
                         <a href="?c=producto&a=index" class="btn btn-secondary">
                             <i class="fas fa-arrow-left"></i> Cancelar
@@ -67,5 +88,25 @@
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('imagen_url').addEventListener('input', function() {
+    const url = this.value;
+    const previewContainer = document.getElementById('preview-container');
+    const previewImage = document.getElementById('imagen-preview');
+    
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        previewImage.src = url;
+        previewContainer.style.display = 'block';
+        
+        // Manejar errores de carga de imagen
+        previewImage.onerror = function() {
+            previewContainer.style.display = 'none';
+        };
+    } else {
+        previewContainer.style.display = 'none';
+    }
+});
+</script>
 
 <?php include 'layout/footer.php'; ?>
